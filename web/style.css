@@ -104,38 +104,48 @@ button {
   border-top: 4px solid transparent;
 }
 
-.board-panel.us {
-  background: #13284f;
-  border-top-color: #3c3b6e;
-  box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.35);
+.board-panel.cognition {
+  background: #17181a;
+  border-top-color: #edeceb;
+  box-shadow: inset 0 0 0 1px rgba(237, 236, 235, 0.22);
 }
 
-.board-panel.ussr {
-  background: #3a1a22;
-  border-top-color: #cc0000;
-  box-shadow: inset 0 0 0 1px rgba(255, 215, 0, 0.3);
+.board-panel.diy {
+  background: #3a2f1e;
+  border-top: 4px dashed #ffd84a;
+  box-shadow: inset 0 0 0 1px rgba(255, 216, 74, 0.3);
 }
 
 .side-title {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 2em;
 }
 
-.board-panel.us .side-title {
-  color: #f2d27a;
+.board-panel.cognition .side-title {
+  color: #edeceb;
 }
 
-.board-panel.ussr .side-title {
-  color: #ffd34d;
+.board-panel.diy .side-title {
+  color: #ffd84a;
 }
 
 .emblem {
   height: 1.4em;
   width: auto;
   flex: none;
+}
+
+.emblem.logo {
+  color: #edeceb;
+}
+
+.emblem.diy-badge {
+  height: 1.8em;
   border-radius: 2px;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+  transform: rotate(-3deg);
+  box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.45);
 }
 
 .subtitle {

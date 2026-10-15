@@ -41,7 +41,7 @@ test("sunk messages can use a themed ship name", () => {
   board.placeShip("Destroyer", 2, [0, 0], Direction.HORIZONTAL);
   board.receiveShot([0, 0]);
   assert.equal(
-    describeShot(board.receiveShot([0, 1]), "You", "Computer", "Sovremenny (Destroyer)"),
-    'You fired at A2: hit! Computer: "You sunk my Sovremenny (Destroyer)!"',
+    describeShot(board.receiveShot([0, 1]), "You", "Computer", "Bash Script (Destroyer)"),
+    'You fired at A2: hit! Computer: "You sunk my Bash Script (Destroyer)!"',
   );
 });
