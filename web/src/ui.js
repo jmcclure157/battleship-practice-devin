@@ -1,6 +1,6 @@
 // Page code: draws the grids and turns clicks into Match calls.
 
-import { BOARD_SIZE, Direction, Outcome, PlacementError, ShotError } from "./board.js";
+import { BOARD_SIZE, Direction, Outcome, PlacementError, ShotError, directionOf } from "./board.js";
 import { Match, Phase } from "./match.js";
 import { ROW_LABELS, formatCoord } from "./messages.js";
 import { FLEET, coordKey } from "./ships.js";
@@ -14,6 +14,9 @@ const enemyGrid = $("enemy-grid");
 const match = new Match();
 let hoverCoord = null;
 let computerThinking = false;
+// A ship being dragged: which square of it was grabbed (offset) and where it is now (over).
+let drag = null;
+let suppressClick = false;
 
 function buildGrid(container) {
   container.append(label(""));
@@ -39,7 +42,11 @@ function label(text) {
 }
 
 function coordOf(event) {
-  const cell = event.target.closest(".cell");
+  return coordOfElement(event.target);
+}
+
+function coordOfElement(element) {
+  const cell = element?.closest(".cell");
   if (!cell || cell.dataset.row === undefined) return null;
   return [Number(cell.dataset.row), Number(cell.dataset.col)];
 }
@@ -75,13 +82,22 @@ function drawCell(cell, { board, revealShips, preview }) {
   return { coord, shot };
 }
 
+function dragStart({ offset, direction, over: [row, col] }) {
+  return direction === Direction.HORIZONTAL ? [row, col - offset] : [row - offset, col];
+}
+
 function renderOwnGrid() {
-  const placing = match.phase === Phase.PLACING && match.nextShip !== null;
-  const found = placing && hoverCoord ? match.preview(hoverCoord) : null;
+  const placing = match.phase === Phase.PLACING;
+  let found = null;
+  if (drag?.over) found = match.previewMove(drag.name, dragStart(drag), drag.direction);
+  else if (!drag && placing && match.nextShip !== null && hoverCoord) found = match.preview(hoverCoord);
   const preview = found && { keys: new Set(found.cells.map(coordKey)), valid: found.valid };
   for (const cell of cellsOf(ownGrid)) {
-    drawCell(cell, { board: match.human.board, revealShips: true, preview });
+    const { coord } = drawCell(cell, { board: match.human.board, revealShips: true, preview });
+    const ship = match.human.board.shipAt(coord);
     cell.disabled = !placing;
+    cell.classList.toggle("draggable", placing && ship !== null);
+    cell.classList.toggle("drag-origin", drag !== null && ship?.name === drag.name);
   }
 }
 
@@ -114,7 +130,7 @@ function renderFleet(list, board, highlightNext) {
 function statusText() {
   if (match.phase === Phase.PLACING) {
     const next = match.nextShip;
-    if (next === null) return "All ships placed. Press Start battle (or Clear to redo).";
+    if (next === null) return "All ships placed. Drag a ship to move it, click it to turn it, or press Start battle.";
     const way = match.direction === Direction.HORIZONTAL ? "horizontal" : "vertical";
     return `Place your ${next[0]} (${next[1]} squares, ${way}): click a square on Your fleet.`;
   }
@@ -146,6 +162,12 @@ function render() {
 }
 
 function rotate() {
+  if (drag) {
+    drag.direction = drag.direction === Direction.HORIZONTAL ? Direction.VERTICAL : Direction.HORIZONTAL;
+    drag.moved = true;
+    render();
+    return;
+  }
   if (match.phase !== Phase.PLACING || match.nextShip === null) return;
   match.rotate();
   render();
@@ -159,7 +181,65 @@ ownGrid.addEventListener("mouseleave", () => {
   hoverCoord = null;
   renderOwnGrid();
 });
+// Press on a placed ship and drag it to move it; a plain click turns it in place.
+ownGrid.addEventListener("pointerdown", (event) => {
+  suppressClick = false;
+  if (match.phase !== Phase.PLACING || drag || event.button !== 0) return;
+  const coord = coordOf(event);
+  const ship = coord && match.human.board.shipAt(coord);
+  if (!ship) return;
+  event.preventDefault();
+  ownGrid.setPointerCapture(event.pointerId);
+  const offset = ship.cells.findIndex(([r, c]) => r === coord[0] && c === coord[1]);
+  drag = { name: ship.name, offset, direction: directionOf(ship.cells), over: coord, moved: false };
+  render();
+});
+ownGrid.addEventListener("pointermove", (event) => {
+  if (!drag) return;
+  const element = document.elementFromPoint(event.clientX, event.clientY);
+  const coord = ownGrid.contains(element) ? coordOfElement(element) : null;
+  if (coord === drag.over || (coord && drag.over && coordKey(coord) === coordKey(drag.over))) return;
+  drag.over = coord;
+  drag.moved = true;
+  render();
+});
+ownGrid.addEventListener("pointerup", () => {
+  if (!drag) return;
+  const { name, moved } = drag;
+  if (!moved) drag.direction = drag.direction === Direction.HORIZONTAL ? Direction.VERTICAL : Direction.HORIZONTAL;
+  finishDrag(name, moved ? "move" : "turn");
+});
+ownGrid.addEventListener("pointercancel", cancelDrag);
+
+function finishDrag(name, verb) {
+  const current = drag;
+  drag = null;
+  suppressClick = true;
+  if (current.over === null) {
+    notify(`${name} went back: drop it on Your fleet.`);
+  } else {
+    try {
+      match.moveShip(name, dragStart(current), current.direction);
+      notify("");
+    } catch (error) {
+      if (!(error instanceof PlacementError)) throw error;
+      notify(`Can't ${verb} ${name} there: ${error.message} It stayed where it was.`);
+    }
+  }
+  render();
+}
+
+function cancelDrag() {
+  if (!drag) return;
+  drag = null;
+  render();
+}
+
 ownGrid.addEventListener("click", (event) => {
+  if (suppressClick) {
+    suppressClick = false;
+    return;
+  }
   const coord = coordOf(event);
   if (coord === null || match.phase !== Phase.PLACING || match.nextShip === null) return;
   const [name] = match.nextShip;
@@ -197,7 +277,8 @@ enemyGrid.addEventListener("click", (event) => {
 
 $("rotate").addEventListener("click", rotate);
 document.addEventListener("keydown", (event) => {
-  if (event.key.toLowerCase() === "r" && !event.ctrlKey && !event.metaKey) rotate();
+  if (event.key === "Escape") cancelDrag();
+  else if (event.key.toLowerCase() === "r" && !event.ctrlKey && !event.metaKey) rotate();
 });
 $("random").addEventListener("click", () => {
   match.placeRandomly();
@@ -217,6 +298,7 @@ $("start").addEventListener("click", () => {
 $("again").addEventListener("click", () => {
   match.reset();
   hoverCoord = null;
+  drag = null;
   notify("");
   render();
 });

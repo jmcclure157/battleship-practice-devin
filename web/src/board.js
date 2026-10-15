@@ -23,6 +23,11 @@ export function shipCells([row, col], size, direction) {
   );
 }
 
+// A placed ship's direction, read back from its cells.
+export function directionOf(cells) {
+  return cells.length > 1 && cells[1][0] !== cells[0][0] ? Direction.VERTICAL : Direction.HORIZONTAL;
+}
+
 export function inBounds([row, col], size = BOARD_SIZE) {
   return row >= 0 && row < size && col >= 0 && col < size;
 }
@@ -42,20 +47,22 @@ export class Board {
     return this.shots.get(coordKey(coord)) ?? null;
   }
 
-  validatePlacement(cells) {
+  // `ignore` is a ship being moved, so it can't block its own new spot.
+  validatePlacement(cells, ignore = null) {
     for (const cell of cells) {
       if (!inBounds(cell, this.size)) {
         throw new PlacementError("Ship would extend outside the grid.");
       }
-      if (this.shipAt(cell) !== null) {
+      const other = this.shipAt(cell);
+      if (other !== null && other !== ignore) {
         throw new PlacementError("Ship would overlap another ship.");
       }
     }
   }
 
-  canPlace(size, start, direction) {
+  canPlace(size, start, direction, ignore = null) {
     try {
-      this.validatePlacement(shipCells(start, size, direction));
+      this.validatePlacement(shipCells(start, size, direction), ignore);
       return true;
     } catch (error) {
       if (error instanceof PlacementError) return false;
@@ -74,6 +81,17 @@ export class Board {
     this.validatePlacement(cells);
     const ship = new Ship(name, size, cells);
     this.ships.push(ship);
+    return ship;
+  }
+
+  // Moves an already placed ship; on failure it stays where it was.
+  moveShip(name, start, direction) {
+    const ship = this.ships.find((s) => s.name === name);
+    if (ship === undefined) throw new PlacementError(`${name} is not on the board.`);
+    if (this.shots.size > 0) throw new PlacementError("Ships can't move once shots have been fired.");
+    const cells = shipCells(start, ship.size, direction);
+    this.validatePlacement(cells, ship);
+    ship.cells = cells;
     return ship;
   }
 

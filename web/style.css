@@ -104,6 +104,7 @@ button {
 }
 
 .grid {
+  user-select: none;
   display: grid;
   grid-template-columns: repeat(11, var(--cell));
   grid-auto-rows: var(--cell);
@@ -158,6 +159,15 @@ button {
 
 .cell.miss {
   color: var(--miss);
+}
+
+.cell.draggable {
+  cursor: grab;
+  touch-action: none;
+}
+
+.cell.drag-origin:not(.preview-ok):not(.preview-bad) {
+  opacity: 0.4;
 }
 
 .cell.preview-ok {

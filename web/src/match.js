@@ -58,6 +58,21 @@ export class Match {
     };
   }
 
+  // Where a placed ship would go if dragged to `start`, for the drag preview.
+  previewMove(name, start, direction) {
+    const ship = this.human.board.ships.find((s) => s.name === name);
+    if (this.phase !== Phase.PLACING || ship === undefined) return null;
+    return {
+      cells: shipCells(start, ship.size, direction).filter((cell) => inBounds(cell)),
+      valid: this.human.board.canPlace(ship.size, start, direction, ship),
+    };
+  }
+
+  moveShip(name, start, direction) {
+    this.#requirePhase(Phase.PLACING);
+    return this.human.board.moveShip(name, start, direction);
+  }
+
   placeNext(start) {
     this.#requirePhase(Phase.PLACING);
     const next = this.nextShip;
