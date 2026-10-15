@@ -1,8 +1,55 @@
-# Battleship (Python, command line)
+# Battleship
 
-The classic Battleship board game, played in your terminal (the text window
-where you type commands). Play against the computer, or against a friend on
-the same keyboard.
+The classic Battleship board game, in two versions:
+
+- **Web version** — play against the computer in your browser by clicking
+  squares. Nothing to install. See [Web version](#web-version).
+- **Command-line version** — played in your terminal (the text window where
+  you type commands), against the computer or a friend on the same keyboard.
+
+## Web version
+
+Open the game's web page (hosted for free by GitHub Pages):
+**https://jmcclure157.github.io/battleship-practice-devin/**
+
+1. Place your 5 ships on **Your fleet**: hover over a square to preview where
+   the highlighted ship would go (green = fits, red = doesn't), then click to
+   drop it. Press **R** or the **Direction** button to turn it between
+   horizontal and vertical. Or click **Place randomly**.
+2. Press **Start battle**, then click squares in **Enemy waters** to fire.
+   The computer fires back after each of your shots.
+3. Sink all 5 enemy ships before the computer sinks yours. **Play again**
+   starts a new game.
+
+The whole game runs inside the page (in JavaScript, the language browsers
+understand), so there is no server and nothing is saved anywhere.
+
+### How the web version is built
+
+The browser can't run Python, so `web/src/` is a JavaScript copy of the same
+rules, file for file, with the same tests ported to JavaScript:
+
+| File | What it does |
+|------|--------------|
+| `web/index.html`, `web/style.css` | The page layout and its look |
+| `web/src/ships.js`, `board.js`, `game.js`, `ai.js` | Same jobs as the Python files of the same names |
+| `web/src/messages.js` | The battle-log sentences ("You sunk my Battleship!") |
+| `web/src/match.js` | One human-vs-computer game from placement to the last shot |
+| `web/src/ui.js` | The only page code: draws the grids and turns clicks into moves |
+| `web/test/` | Automated tests, run with Node.js's built-in test runner |
+
+To run the web tests on a computer with [Node.js](https://nodejs.org) 20+:
+
+```bash
+cd web
+npm test
+```
+
+`.github/workflows/pages.yml` publishes the page each time `main` changes.
+It needs GitHub Pages turned on once: repo **Settings → Pages → Source:
+GitHub Actions**.
+
+# Command-line version
 
 ## Requirements
 
@@ -76,4 +123,4 @@ python3 -m unittest discover -v
 The tests cover placement validation, hit/miss results, sinking detection,
 win detection, the computer's strategy, input parsing, and two complete
 scripted games. GitHub Actions (`.github/workflows/ci.yml`) runs the same
-command on every pull request.
+command, plus the web tests, on every pull request.
