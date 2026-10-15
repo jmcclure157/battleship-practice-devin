@@ -71,13 +71,19 @@ class PlacementValidationTests(unittest.TestCase):
         self.assertEqual(self.board.ships, [])
 
     def test_random_placement_retries_when_boxed_in(self):
-        # On a 3x3 board three 3-long ships only fit as three parallel lines,
-        # so a single greedy pass often fails.
-        fleet = [("A", 3), ("B", 3), ("C", 3)]
+        # These ships exactly fill a 3x3 board, so early random choices often
+        # leave no room for later ships.
+        fleet = [("A", 3), ("B", 2), ("C", 2), ("D", 2)]
+        single_pass_failures = 0
         for seed in range(30):
+            try:
+                Board(size=3).place_fleet_randomly(fleet, rng=random.Random(seed), attempts=1)
+            except PlacementError:
+                single_pass_failures += 1
             board = Board(size=3)
             board.place_fleet_randomly(fleet, rng=random.Random(seed))
-            self.assertEqual(len(board.ships), 3)
+            self.assertEqual(len(board.ships), 4)
+        self.assertGreater(single_pass_failures, 0, "fleet never boxes itself in")
 
     def test_random_placement_failure_leaves_board_unchanged(self):
         board = Board(size=3)
