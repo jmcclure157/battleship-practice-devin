@@ -99,8 +99,12 @@ class Board:
         rng = rng or random.Random()
         existing = list(self.ships)
         for _attempt in range(attempts):
-            if self._try_place_fleet(fleet, rng):
-                return
+            try:
+                if self._try_place_fleet(fleet, rng):
+                    return
+            except PlacementError:
+                self.ships = list(existing)
+                raise
             self.ships = list(existing)
         raise PlacementError("Could not fit the fleet on the board.")
 

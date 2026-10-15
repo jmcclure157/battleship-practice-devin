@@ -91,6 +91,13 @@ class PlacementValidationTests(unittest.TestCase):
             board.place_fleet_randomly([("A", 3), ("B", 3), ("C", 3), ("D", 1)], attempts=5)
         self.assertEqual(board.ships, [])
 
+    def test_random_placement_invalid_fleet_leaves_board_unchanged(self):
+        for fleet in ([("A", 3), ("Ghost", 0)], [("A", 3), ("A", 2)]):
+            board = Board()
+            with self.assertRaises(PlacementError):
+                board.place_fleet_randomly(fleet, rng=random.Random(0))
+            self.assertEqual(board.ships, [])
+
 
 class ShotTests(unittest.TestCase):
     def setUp(self):
