@@ -1,0 +1,9 @@
+{
+  "name": "battleship-web",
+  "private": true,
+  "type": "module",
+  "description": "Browser version of Battleship. No dependencies; tests use Node's built-in test runner.",
+  "scripts": {
+    "test": "node --test"
+  }
+}

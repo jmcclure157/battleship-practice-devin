@@ -1,0 +1,243 @@
+:root {
+  --cell: clamp(20px, 3.6vw, 36px);
+  --bg: #0b1d2e;
+  --panel: #12304a;
+  --water: #1f6391;
+  --water-hover: #2b7bb2;
+  --ship: #9aa7b4;
+  --hit: #e0483e;
+  --sunk: #7a1f1a;
+  --miss: #d8e6f2;
+  --ok: #3ccf7a;
+  --text: #eef4f9;
+  --muted: #a9c0d3;
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+h1 {
+  margin: 0 0 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.status {
+  font-size: 1.1rem;
+  min-height: 1.5em;
+  margin: 0;
+}
+
+.notice {
+  min-height: 1.4em;
+  margin: 4px 0 8px;
+  color: #ffb4ac;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.controls[hidden] {
+  display: none;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.controls button {
+  padding: 8px 14px;
+  border: 1px solid #3d6a8f;
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.controls button:hover:not(:disabled) {
+  background: #1b4366;
+}
+
+.controls button.primary {
+  background: #2c8a4f;
+  border-color: #3ccf7a;
+}
+
+.controls button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.boards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.board-panel {
+  background: var(--panel);
+  padding: 12px;
+  border-radius: 10px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(11, var(--cell));
+  grid-auto-rows: var(--cell);
+  gap: 2px;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cell);
+  height: var(--cell);
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: var(--water);
+  color: var(--text);
+  font-size: calc(var(--cell) * 0.55);
+  font-style: normal;
+  line-height: 1;
+}
+
+.cell:disabled {
+  cursor: default;
+}
+
+.enemy .cell.target:hover {
+  background: var(--water-hover);
+  cursor: crosshair;
+  outline: 2px solid var(--miss);
+}
+
+.cell.ship {
+  background: var(--ship);
+}
+
+.cell.hit {
+  background: var(--hit);
+}
+
+.cell.sunk {
+  background: var(--sunk);
+}
+
+.cell.miss {
+  color: var(--miss);
+}
+
+.cell.preview-ok {
+  background: var(--ok);
+}
+
+.cell.preview-bad {
+  background: var(--hit);
+  opacity: 0.6;
+}
+
+.fleet {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 10px 0 0;
+  padding: 0;
+  max-width: calc(var(--cell) * 11 + 20px);
+  font-size: 0.9rem;
+}
+
+.fleet .next {
+  color: var(--ok);
+  font-weight: bold;
+}
+
+.fleet .sunk {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 16px 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend .cell {
+  --cell: 20px;
+}
+
+.log-panel {
+  background: var(--panel);
+  padding: 12px;
+  border-radius: 10px;
+}
+
+.log {
+  max-height: 180px;
+  overflow-y: auto;
+  margin: 0;
+  padding-left: 2.5em;
+  font-size: 0.95rem;
+}
+
+.help {
+  margin-top: 16px;
+  color: var(--muted);
+}
+
+.help summary {
+  cursor: pointer;
+}
+
+@media (max-width: 400px) {
+  main {
+    padding: 8px;
+  }
+
+  .board-panel {
+    padding: 8px;
+  }
+}
