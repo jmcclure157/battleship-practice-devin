@@ -163,7 +163,7 @@ function render() {
 
 function rotate() {
   if (drag) {
-    drag.direction = drag.direction === Direction.HORIZONTAL ? Direction.VERTICAL : Direction.HORIZONTAL;
+    drag.direction = turned(drag.direction);
     drag.moved = true;
     render();
     return;
@@ -191,30 +191,58 @@ ownGrid.addEventListener("pointerdown", (event) => {
   event.preventDefault();
   ownGrid.setPointerCapture(event.pointerId);
   const offset = ship.cells.findIndex(([r, c]) => r === coord[0] && c === coord[1]);
-  drag = { name: ship.name, offset, direction: directionOf(ship.cells), over: coord, moved: false };
+  drag = {
+    pointerId: event.pointerId,
+    name: ship.name,
+    offset,
+    direction: directionOf(ship.cells),
+    over: coord,
+    moved: false,
+  };
   render();
 });
-ownGrid.addEventListener("pointermove", (event) => {
-  if (!drag) return;
+
+// Only the finger (or mouse) that picked the ship up can move or drop it.
+function isDragPointer(event) {
+  return drag !== null && event.pointerId === drag.pointerId;
+}
+
+// True if the square under the pointer changed.
+function trackPointer(event) {
   const element = document.elementFromPoint(event.clientX, event.clientY);
   const coord = ownGrid.contains(element) ? coordOfElement(element) : null;
-  if (coord === drag.over || (coord && drag.over && coordKey(coord) === coordKey(drag.over))) return;
+  if (coord === drag.over || (coord && drag.over && coordKey(coord) === coordKey(drag.over))) return false;
   drag.over = coord;
   drag.moved = true;
-  render();
-});
-ownGrid.addEventListener("pointerup", () => {
-  if (!drag) return;
-  const { name, moved } = drag;
-  if (!moved) drag.direction = drag.direction === Direction.HORIZONTAL ? Direction.VERTICAL : Direction.HORIZONTAL;
-  finishDrag(name, moved ? "move" : "turn");
-});
-ownGrid.addEventListener("pointercancel", cancelDrag);
+  return true;
+}
 
-function finishDrag(name, verb) {
-  const current = drag;
-  drag = null;
+ownGrid.addEventListener("pointermove", (event) => {
+  if (isDragPointer(event) && trackPointer(event)) render();
+});
+ownGrid.addEventListener("pointerup", (event) => {
+  if (!isDragPointer(event)) return;
+  trackPointer(event);
+  if (!drag.moved) drag.direction = turned(drag.direction);
+  // The browser may follow this with a click; skip it so it doesn't also place the next ship.
   suppressClick = true;
+  setTimeout(() => {
+    suppressClick = false;
+  }, 0);
+  finishDrag(drag.moved ? "move" : "turn");
+});
+ownGrid.addEventListener("pointercancel", (event) => {
+  if (isDragPointer(event)) cancelDrag();
+});
+
+function turned(direction) {
+  return direction === Direction.HORIZONTAL ? Direction.VERTICAL : Direction.HORIZONTAL;
+}
+
+function finishDrag(verb) {
+  const current = drag;
+  const { name } = current;
+  drag = null;
   if (current.over === null) {
     notify(`${name} went back: drop it on Your fleet.`);
   } else {
@@ -241,7 +269,16 @@ ownGrid.addEventListener("click", (event) => {
     return;
   }
   const coord = coordOf(event);
-  if (coord === null || match.phase !== Phase.PLACING || match.nextShip === null) return;
+  if (coord === null || match.phase !== Phase.PLACING) return;
+  // Reached only by keyboard (Enter/Space): mouse and touch presses on a ship are handled as drags.
+  const ship = match.human.board.shipAt(coord);
+  if (ship !== null) {
+    const offset = ship.cells.findIndex(([r, c]) => r === coord[0] && c === coord[1]);
+    drag = { name: ship.name, offset, direction: turned(directionOf(ship.cells)), over: coord, moved: false };
+    finishDrag("turn");
+    return;
+  }
+  if (match.nextShip === null) return;
   const [name] = match.nextShip;
   try {
     match.placeNext(coord);
