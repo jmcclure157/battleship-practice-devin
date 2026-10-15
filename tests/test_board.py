@@ -64,6 +64,27 @@ class PlacementValidationTests(unittest.TestCase):
                 cols = {c for _, c in ship.cells}
                 self.assertTrue(len(rows) == 1 or len(cols) == 1, "ship not straight")
 
+    def test_rejects_zero_or_negative_size(self):
+        for size in (0, -2):
+            with self.assertRaisesRegex(PlacementError, "at least 1"):
+                self.board.place_ship("Ghost", size, (0, 0), H)
+        self.assertEqual(self.board.ships, [])
+
+    def test_random_placement_retries_when_boxed_in(self):
+        # On a 3x3 board three 3-long ships only fit as three parallel lines,
+        # so a single greedy pass often fails.
+        fleet = [("A", 3), ("B", 3), ("C", 3)]
+        for seed in range(30):
+            board = Board(size=3)
+            board.place_fleet_randomly(fleet, rng=random.Random(seed))
+            self.assertEqual(len(board.ships), 3)
+
+    def test_random_placement_failure_leaves_board_unchanged(self):
+        board = Board(size=3)
+        with self.assertRaises(PlacementError):
+            board.place_fleet_randomly([("A", 3), ("B", 3), ("C", 3), ("D", 1)], attempts=5)
+        self.assertEqual(board.ships, [])
+
 
 class ShotTests(unittest.TestCase):
     def setUp(self):

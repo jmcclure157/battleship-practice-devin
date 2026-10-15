@@ -78,6 +78,8 @@ class Board:
         return True
 
     def place_ship(self, name: str, size: int, start: Coord, direction: Direction) -> Ship:
+        if size < 1:
+            raise PlacementError("Ship size must be at least 1.")
         if any(ship.name == name for ship in self.ships):
             raise PlacementError(f"{name} has already been placed.")
         cells = ship_cells(start, size, direction)
@@ -87,9 +89,22 @@ class Board:
         return ship
 
     def place_fleet_randomly(
-        self, fleet: list[tuple[str, int]] = FLEET, rng: random.Random | None = None
+        self,
+        fleet: list[tuple[str, int]] = FLEET,
+        rng: random.Random | None = None,
+        attempts: int = 1000,
     ) -> None:
+        """Earlier random choices can box in a later ship, so retry the whole
+        fleet; on failure the board is left as it was."""
         rng = rng or random.Random()
+        existing = list(self.ships)
+        for _attempt in range(attempts):
+            if self._try_place_fleet(fleet, rng):
+                return
+            self.ships = list(existing)
+        raise PlacementError("Could not fit the fleet on the board.")
+
+    def _try_place_fleet(self, fleet: list[tuple[str, int]], rng: random.Random) -> bool:
         for name, size in fleet:
             options = [
                 (start, direction)
@@ -98,9 +113,10 @@ class Board:
                 if self.can_place(size, start, direction)
             ]
             if not options:
-                raise PlacementError(f"No room left to place {name}.")
+                return False
             start, direction = rng.choice(options)
             self.place_ship(name, size, start, direction)
+        return True
 
     def all_coords(self) -> list[Coord]:
         return [(r, c) for r in range(self.size) for c in range(self.size)]
