@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
-import { Board, Direction, Outcome, PlacementError, ShotError } from "../src/board.js";
+import { Board, Direction, Outcome, PlacementError, ShotError, directionOf } from "../src/board.js";
 import { seededRandom } from "../src/random.js";
 import { FLEET } from "../src/ships.js";
 
@@ -156,5 +156,57 @@ describe("shots", () => {
 
   test("an empty board is not 'all sunk'", () => {
     assert.equal(new Board().allSunk(), false);
+  });
+});
+
+describe("moving a placed ship", () => {
+  test("moves a ship to a free spot", () => {
+    const board = new Board();
+    board.placeShip("Cruiser", 3, [0, 0], H);
+    const cruiser = board.moveShip("Cruiser", [5, 5], V);
+    assert.deepEqual(cruiser.cells, [[5, 5], [6, 5], [7, 5]]);
+    assert.equal(board.shipAt([0, 0]), null);
+    assert.equal(board.ships.length, 1);
+  });
+
+  test("a ship may overlap its own old squares, e.g. sliding or turning in place", () => {
+    const board = new Board();
+    board.placeShip("Cruiser", 3, [0, 0], H);
+    assert.deepEqual(board.moveShip("Cruiser", [0, 1], H).cells, [[0, 1], [0, 2], [0, 3]]);
+    assert.deepEqual(board.moveShip("Cruiser", [0, 1], V).cells, [[0, 1], [1, 1], [2, 1]]);
+  });
+
+  test("refuses overlapping another ship and leaves the ship where it was", () => {
+    const board = new Board();
+    board.placeShip("Carrier", 5, [0, 0], H);
+    board.placeShip("Destroyer", 2, [5, 5], H);
+    throwsWith(() => board.moveShip("Destroyer", [0, 3], V), PlacementError, /overlap/);
+    assert.deepEqual(board.shipAt([5, 5]).name, "Destroyer");
+    assert.deepEqual(board.ships[1].cells, [[5, 5], [5, 6]]);
+  });
+
+  test("refuses moving off the grid and leaves the ship where it was", () => {
+    const board = new Board();
+    board.placeShip("Battleship", 4, [0, 0], H);
+    throwsWith(() => board.moveShip("Battleship", [0, 7], H), PlacementError, /outside/);
+    throwsWith(() => board.moveShip("Battleship", [-1, 0], V), PlacementError, /outside/);
+    assert.deepEqual(board.ships[0].cells, [[0, 0], [0, 1], [0, 2], [0, 3]]);
+  });
+
+  test("refuses a ship that isn't on the board", () => {
+    throwsWith(() => new Board().moveShip("Carrier", [0, 0], H), PlacementError, /not on the board/);
+  });
+
+  test("refuses once shots have been fired", () => {
+    const board = new Board();
+    board.placeShip("Destroyer", 2, [0, 0], H);
+    board.receiveShot([9, 9]);
+    throwsWith(() => board.moveShip("Destroyer", [5, 5], H), PlacementError, /shots/);
+  });
+
+  test("reads a ship's direction back from its cells", () => {
+    const board = new Board();
+    assert.equal(directionOf(board.placeShip("Cruiser", 3, [0, 0], H).cells), H);
+    assert.equal(directionOf(board.placeShip("Destroyer", 2, [2, 0], V).cells), V);
   });
 });

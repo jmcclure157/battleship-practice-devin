@@ -112,3 +112,40 @@ test("play again starts a fresh match", () => {
   assert.equal(match.computer.board.shots.size, 0);
   assert.deepEqual(match.log, []);
 });
+
+test("ships placed randomly can be dragged somewhere else before the battle", () => {
+  const match = new Match(seededRandom(3));
+  match.placeRandomly();
+  const board = match.human.board;
+  const destroyer = board.ships.find((ship) => ship.name === "Destroyer");
+  const target = board
+    .allCoords()
+    .find((coord) => board.shipAt(coord) === null && board.canPlace(2, coord, Direction.VERTICAL, destroyer));
+  assert.equal(match.previewMove("Destroyer", target, Direction.VERTICAL).valid, true);
+  match.moveShip("Destroyer", target, Direction.VERTICAL);
+  assert.equal(board.shipAt(target), destroyer);
+  assert.equal(board.ships.length, 5);
+  assert.equal(match.nextShip, null);
+});
+
+test("the drag preview marks a bad drop and clips at the edge", () => {
+  const match = new Match(seededRandom(0));
+  match.placeNext([0, 0]); // Carrier
+  match.placeNext([2, 0]); // Battleship
+  assert.deepEqual(match.previewMove("Battleship", [2, 8], Direction.HORIZONTAL), {
+    cells: [[2, 8], [2, 9]],
+    valid: false,
+  });
+  assert.equal(match.previewMove("Battleship", [0, 6], Direction.VERTICAL).valid, true);
+  assert.equal(match.previewMove("Battleship", [0, 4], Direction.VERTICAL).valid, false);
+  assert.equal(match.previewMove("Cruiser", [5, 5], Direction.HORIZONTAL), null); // not placed yet
+});
+
+test("ships are locked once the battle starts", () => {
+  const match = new Match(seededRandom(0));
+  match.placeRandomly();
+  match.start();
+  const [ship] = match.human.board.ships;
+  assert.throws(() => match.moveShip(ship.name, [0, 0], Direction.HORIZONTAL), /placing/);
+  assert.equal(match.previewMove(ship.name, [0, 0], Direction.HORIZONTAL), null);
+});

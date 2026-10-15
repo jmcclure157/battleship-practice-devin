@@ -16,6 +16,9 @@ Open the game's web page (hosted for free by GitHub Pages):
    the highlighted ship would go (green = fits, red = doesn't), then click to
    drop it. Press **R** or the **Direction** button to turn it between
    horizontal and vertical. Or click **Place randomly**.
+   Until the battle starts you can still change your fleet: drag any placed
+   ship to a new spot (press **R** while dragging to turn it), or click a ship
+   to turn it in place. A drop that doesn't fit leaves the ship where it was.
 2. Press **Start battle**, then click squares in **Enemy waters** to fire.
    The computer fires back after each of your shots.
 3. Sink all 5 enemy ships before the computer sinks yours. **Play again**
