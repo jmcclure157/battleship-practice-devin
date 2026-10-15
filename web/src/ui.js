@@ -4,6 +4,7 @@ import { BOARD_SIZE, Direction, Outcome, PlacementError, ShotError, directionOf 
 import { Match, Phase } from "./match.js";
 import { ROW_LABELS, formatCoord } from "./messages.js";
 import { FLEET, coordKey } from "./ships.js";
+import { SIDES } from "./theme.js";
 
 const COMPUTER_DELAY_MS = 600;
 
@@ -114,13 +115,13 @@ function renderEnemyGrid() {
   }
 }
 
-function renderFleet(list, board, highlightNext) {
+function renderFleet(list, board, side, highlightNext) {
   const next = highlightNext ? match.nextShip?.[0] : null;
   list.replaceChildren(
     ...FLEET.map(([name, size]) => {
       const item = document.createElement("li");
       const ship = board.ships.find((s) => s.name === name);
-      item.textContent = `${name} (${size})`;
+      item.textContent = `${SIDES[side].ships[name]} · ${name} (${size})`;
       if (ship?.isSunk) item.className = "sunk";
       else if (name === next) item.className = "next";
       return item;
@@ -151,8 +152,8 @@ function render() {
   $("start").disabled = match.nextShip !== null;
   renderOwnGrid();
   renderEnemyGrid();
-  renderFleet($("own-fleet"), match.human.board, placing);
-  renderFleet($("enemy-fleet"), match.computer.board, false);
+  renderFleet($("own-fleet"), match.human.board, "human", placing);
+  renderFleet($("enemy-fleet"), match.computer.board, "computer", false);
   $("log").replaceChildren(
     ...[...match.log].reverse().map((line) => {
       const item = document.createElement("li");

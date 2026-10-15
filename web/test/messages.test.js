@@ -35,3 +35,13 @@ test("announces the winner", () => {
   assert.equal(describeWin("You", "Computer"), "All of the Computer's ships are sunk. You win!");
   assert.equal(describeWin("Computer", "You"), "All of your ships are sunk. Computer wins!");
 });
+
+test("sunk messages can use a themed ship name", () => {
+  const board = new Board();
+  board.placeShip("Destroyer", 2, [0, 0], Direction.HORIZONTAL);
+  board.receiveShot([0, 0]);
+  assert.equal(
+    describeShot(board.receiveShot([0, 1]), "You", "Computer", "Sovremenny (Destroyer)"),
+    'You fired at A2: hit! Computer: "You sunk my Sovremenny (Destroyer)!"',
+  );
+});

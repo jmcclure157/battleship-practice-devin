@@ -7,6 +7,7 @@ import { BOARD_SIZE, Board, Direction, PlacementError, ShotError, inBounds, ship
 import { Game, Player } from "./game.js";
 import { describeShot, describeWin } from "./messages.js";
 import { FLEET } from "./ships.js";
+import { shipLabel } from "./theme.js";
 
 export const Phase = Object.freeze({ PLACING: "placing", BATTLE: "battle", OVER: "over" });
 
@@ -116,7 +117,9 @@ export class Match {
   }
 
   #record(result, shooter, defender) {
-    this.log.push(describeShot(result, shooter.name, defender.name));
+    const side = defender === this.human ? "human" : "computer";
+    const shipName = result.ship && shipLabel(side, result.ship.name);
+    this.log.push(describeShot(result, shooter.name, defender.name, shipName));
     if (this.game.isOver) {
       this.phase = Phase.OVER;
       this.log.push(describeWin(shooter.name, defender.name));
