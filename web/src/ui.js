@@ -130,7 +130,6 @@ function renderFleet(list, board, highlightNext) {
 function statusText() {
   if (match.phase === Phase.PLACING) {
     const next = match.nextShip;
-    if (drag) return `Moving your ${drag.name}: drop it on a green spot. Press R to turn it.`;
     if (next === null) return "All ships placed. Drag a ship to move it, click it to turn it, or press Start battle.";
     const way = match.direction === Direction.HORIZONTAL ? "horizontal" : "vertical";
     return `Place your ${next[0]} (${next[1]} squares, ${way}): click a square on Your fleet.`;
