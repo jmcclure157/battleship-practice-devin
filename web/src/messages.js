@@ -13,14 +13,15 @@ function possessive(name) {
   return name === "You" ? "your" : `${name}'s`;
 }
 
-export function describeShot(result, shooter, defender) {
+// `shipName` is how the sunk ship is called in the sentence (defaults to its type).
+export function describeShot(result, shooter, defender, shipName = result.ship?.name) {
   const where = formatCoord(result.coord);
   if (result.outcome === Outcome.MISS) return `${shooter} fired at ${where}: miss.`;
   if (result.outcome === Outcome.SUNK) {
     const sunk =
       defender === "Computer"
-        ? `Computer: "You sunk my ${result.ship.name}!"`
-        : `${shooter} sunk ${possessive(defender)} ${result.ship.name}!`;
+        ? `Computer: "You sunk my ${shipName}!"`
+        : `${shooter} sunk ${possessive(defender)} ${shipName}!`;
     return `${shooter} fired at ${where}: hit! ${sunk}`;
   }
   return `${shooter} fired at ${where}: hit!`;

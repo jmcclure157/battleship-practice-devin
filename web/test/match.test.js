@@ -149,3 +149,15 @@ test("ships are locked once the battle starts", () => {
   assert.throws(() => match.moveShip(ship.name, [0, 0], Direction.HORIZONTAL), /placing/);
   assert.equal(match.previewMove(ship.name, [0, 0], Direction.HORIZONTAL), null);
 });
+
+test("the battle log calls sunk ships by their navy's ship names", () => {
+  const match = new Match(seededRandom(5));
+  match.placeRandomly();
+  match.start();
+  const destroyer = match.computer.board.ships.find((ship) => ship.name === "Destroyer");
+  for (const cell of destroyer.cells) {
+    match.fire(cell);
+    if (match.phase === Phase.BATTLE) match.computerTurn();
+  }
+  assert.ok(match.log.some((line) => line.endsWith('"You sunk my Sovremenny (Destroyer)!"')));
+});

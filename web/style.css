@@ -101,6 +101,47 @@ button {
   background: var(--panel);
   padding: 12px;
   border-radius: 10px;
+  border-top: 4px solid transparent;
+}
+
+.board-panel.us {
+  background: #13284f;
+  border-top-color: #3c3b6e;
+  box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.35);
+}
+
+.board-panel.ussr {
+  background: #3a1a22;
+  border-top-color: #cc0000;
+  box-shadow: inset 0 0 0 1px rgba(255, 215, 0, 0.3);
+}
+
+.side-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.board-panel.us .side-title {
+  color: #f2d27a;
+}
+
+.board-panel.ussr .side-title {
+  color: #ffd34d;
+}
+
+.emblem {
+  height: 1.4em;
+  width: auto;
+  flex: none;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+.subtitle {
+  margin: -4px 0 8px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
 }
 
 .grid {
