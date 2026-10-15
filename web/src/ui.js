@@ -137,7 +137,7 @@ function render() {
   renderFleet($("own-fleet"), match.human.board, placing);
   renderFleet($("enemy-fleet"), match.computer.board, false);
   $("log").replaceChildren(
-    ...match.log.toReversed().map((line) => {
+    ...[...match.log].reverse().map((line) => {
       const item = document.createElement("li");
       item.textContent = line;
       return item;
