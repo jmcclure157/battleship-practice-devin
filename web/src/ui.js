@@ -16,6 +16,7 @@ let hoverCoord = null;
 let computerThinking = false;
 // A ship being dragged: which square of it was grabbed (offset) and where it is now (over).
 let drag = null;
+// Set when a press on a ship ends, so the click the browser sends after it is skipped.
 let suppressClick = false;
 
 function buildGrid(container) {
@@ -183,7 +184,7 @@ ownGrid.addEventListener("mouseleave", () => {
 });
 // Press on a placed ship and drag it to move it; a plain click turns it in place.
 ownGrid.addEventListener("pointerdown", (event) => {
-  suppressClick = false;
+  if (!drag) suppressClick = false;
   if (match.phase !== Phase.PLACING || drag || event.button !== 0) return;
   const coord = coordOf(event);
   const ship = coord && match.human.board.shipAt(coord);
@@ -224,11 +225,7 @@ ownGrid.addEventListener("pointerup", (event) => {
   if (!isDragPointer(event)) return;
   trackPointer(event);
   if (!drag.moved) drag.direction = turned(drag.direction);
-  // The browser may follow this with a click; skip it so it doesn't also place the next ship.
   suppressClick = true;
-  setTimeout(() => {
-    suppressClick = false;
-  }, 0);
   finishDrag(drag.moved ? "move" : "turn");
 });
 ownGrid.addEventListener("pointercancel", (event) => {
@@ -264,15 +261,17 @@ function cancelDrag() {
 }
 
 ownGrid.addEventListener("click", (event) => {
-  if (suppressClick) {
+  // Keyboard clicks (detail 0) never follow a press, so they are never skipped.
+  if (event.detail !== 0 && suppressClick) {
     suppressClick = false;
     return;
   }
   const coord = coordOf(event);
-  if (coord === null || match.phase !== Phase.PLACING) return;
-  // Reached only by keyboard (Enter/Space): mouse and touch presses on a ship are handled as drags.
+  if (drag || coord === null || match.phase !== Phase.PLACING) return;
   const ship = match.human.board.shipAt(coord);
   if (ship !== null) {
+    // Mouse and touch on a ship are handled by the pointer events; this is Enter/Space (detail 0).
+    if (event.detail !== 0) return;
     const offset = ship.cells.findIndex(([r, c]) => r === coord[0] && c === coord[1]);
     drag = { name: ship.name, offset, direction: turned(directionOf(ship.cells)), over: coord, moved: false };
     finishDrag("turn");
