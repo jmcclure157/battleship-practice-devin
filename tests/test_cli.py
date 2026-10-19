@@ -34,7 +34,7 @@ class ScriptedGameTests(unittest.TestCase):
     def run_script(self, answers, seed=0):
         inputs = iter(answers)
         output = []
-        winner = cli.play(lambda _prompt: next(inputs), output.append, random.Random(seed))
+        winner = cli.play(lambda _prompt: next(inputs), output.append, random.Random(seed), lambda: None)
         return winner, "\n".join(output)
 
     def test_manual_placement_retries_invalid_then_human_vs_ai(self):
@@ -103,6 +103,12 @@ class ClearScreenTests(unittest.TestCase):
         with mock.patch.object(cli.os, "name", "nt"), mock.patch.object(cli.os, "system") as system:
             cli.clear_screen(lambda _text: None, self.FakeTty())
         system.assert_called_once_with("cls")
+
+    def test_play_clears_real_terminal_by_default_with_custom_output(self):
+        answers = iter(["2", "R", "", "R", ""])
+        with mock.patch.object(cli, "clear_screen") as clear, self.assertRaises(StopIteration):
+            cli.play(lambda _prompt: next(answers), lambda _text: None, random.Random(0))
+        self.assertEqual(clear.call_count, 2)
 
     def test_non_tty_falls_back_to_blank_lines(self):
         output = []

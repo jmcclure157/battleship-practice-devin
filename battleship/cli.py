@@ -5,6 +5,7 @@ import random
 import re
 import sys
 from collections.abc import Callable
+from functools import partial
 from typing import TextIO
 
 from .ai import HuntTargetAI
@@ -174,7 +175,7 @@ def play(
 ) -> Player:
     rng = rng or random.Random()
     if clear_fn is None:
-        clear_fn = (lambda: clear_screen(output_fn)) if output_fn is print else (lambda: output_fn("\n" * 50))
+        clear_fn = partial(clear_screen, output_fn)
     output_fn("=== BATTLESHIP ===")
     mode = ask("(1) Play vs computer  (2) Two players: ", lambda t: _choice(t, "12"), input_fn, output_fn)
 
