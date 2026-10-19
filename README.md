@@ -78,6 +78,10 @@ python3 -m battleship
    columns are numbers **1–10**.
 4. The first player to sink all five of the other side's ships wins.
 
+In two-player mode the screen (and the terminal's scroll-back history, where
+supported) is wiped each time you pass the keyboard, so the other player can't
+scroll up to see your ships.
+
 Each turn shows two grids side by side:
 
 | Symbol | Left grid ("YOUR FLEET") | Right grid ("SHOTS AT ...") |

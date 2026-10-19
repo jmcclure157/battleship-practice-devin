@@ -1,8 +1,11 @@
 """Terminal input/output: parsing, rendering, placement prompts, game loop."""
 
+import os
 import random
 import re
+import sys
 from collections.abc import Callable
+from typing import TextIO
 
 from .ai import HuntTargetAI
 from .board import BOARD_SIZE, Board, Direction, Outcome, PlacementError, ShotError, ShotResult
@@ -11,9 +14,16 @@ from .ships import FLEET, Coord
 
 InputFn = Callable[[str], str]
 OutputFn = Callable[[str], None]
+ClearFn = Callable[[], None]
 
 ROW_LABELS = "ABCDEFGHIJ"
 COORD_PATTERN = re.compile(r"^\s*([A-Ja-j])\s*(10|[1-9])\s*$")
+# Cursor home, clear screen, clear scrollback.
+ANSI_CLEAR = "\x1b[H\x1b[2J\x1b[3J"
+SCROLLBACK_WARNING = (
+    "Note: the screen is cleared between turns, but some terminals keep a history "
+    "you can scroll back through. Don't scroll up during the other player's turn."
+)
 
 
 def parse_coord(text: str) -> Coord:
@@ -76,6 +86,19 @@ def describe_shot(result: ShotResult, shooter: str, defender: str) -> str:
             sunk = f"{shooter} sunk {defender}'s {result.ship.name}!"
         return f"{shooter} fired at {where}: hit! {sunk}"
     return f"{shooter} fired at {where}: hit!"
+
+
+def clear_screen(output_fn: OutputFn = print, stream: TextIO | None = None) -> None:
+    """Wipe the screen and its scrollback so the next player can't scroll up to see ships."""
+    stream = stream or sys.stdout
+    if not stream.isatty():
+        output_fn("\n" * 50)
+        return
+    if os.name == "nt":
+        os.system("cls")
+        return
+    stream.write(ANSI_CLEAR)
+    stream.flush()
 
 
 def ask(prompt: str, parser, input_fn: InputFn, output_fn: OutputFn):
@@ -147,8 +170,11 @@ def play(
     input_fn: InputFn = input,
     output_fn: OutputFn = print,
     rng: random.Random | None = None,
+    clear_fn: ClearFn | None = None,
 ) -> Player:
     rng = rng or random.Random()
+    if clear_fn is None:
+        clear_fn = (lambda: clear_screen(output_fn)) if output_fn is print else (lambda: output_fn("\n" * 50))
     output_fn("=== BATTLESHIP ===")
     mode = ask("(1) Play vs computer  (2) Two players: ", lambda t: _choice(t, "12"), input_fn, output_fn)
 
@@ -167,17 +193,18 @@ def play(
                 human_turn(game, input_fn, output_fn)
     else:
         p1, p2 = Player("Player 1"), Player("Player 2")
+        output_fn(SCROLLBACK_WARNING)
         for player in (p1, p2):
             setup_player(player, input_fn, output_fn, rng)
             input_fn("Press Enter, then pass to the other player...")
-            output_fn("\n" * 50)
+            clear_fn()
         game = Game(p1, p2)
         while not game.is_over:
             input_fn(f"{game.current.name}, press Enter when ready...")
             human_turn(game, input_fn, output_fn)
             if not game.is_over:
                 input_fn("Press Enter, then pass to the other player...")
-                output_fn("\n" * 50)
+                clear_fn()
 
     assert game.winner is not None
     output_fn("\n" + render_boards(game.winner, game.opponent))

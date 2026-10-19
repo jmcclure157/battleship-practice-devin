@@ -1,5 +1,7 @@
+import io
 import random
 import unittest
+from unittest import mock
 
 from battleship import cli
 from battleship.board import Direction
@@ -61,6 +63,51 @@ class ScriptedGameTests(unittest.TestCase):
         for name, _size in FLEET:
             self.assertIn(f"sunk {loser}'s {name}!", out)
         self.assertIn(f"All of {loser}'s ships are sunk. {winner.name} wins!", out)
+
+
+    def test_two_player_handoff_clears_screen_before_next_player(self):
+        every_cell = [f"{r}{c}" for r in "ABCDEFGHIJ" for c in range(1, 11)]
+        answers = ["2", "R", "", "R", ""]
+        for cell in every_cell:
+            answers += ["", cell, "", "", cell, ""]
+        inputs = iter(answers)
+        events = []
+
+        def fake_input(prompt):
+            events.append(("input", prompt))
+            return next(inputs)
+
+        cli.play(fake_input, lambda text: events.append(("output", text)), random.Random(0), lambda: events.append(("clear",)))
+        handoffs = [i for i, e in enumerate(events) if e == ("input", "Press Enter, then pass to the other player...")]
+        self.assertGreater(len(handoffs), 2)
+        for i in handoffs:
+            self.assertEqual(events[i + 1], ("clear",))
+        self.assertNotIn(("output", "\n" * 50), events)
+        self.assertIn(("output", cli.SCROLLBACK_WARNING), events)
+
+
+class ClearScreenTests(unittest.TestCase):
+    class FakeTty(io.StringIO):
+        def isatty(self):
+            return True
+
+    def test_tty_gets_ansi_clear_including_scrollback(self):
+        stream = self.FakeTty()
+        output = []
+        with mock.patch.object(cli.os, "name", "posix"):
+            cli.clear_screen(output.append, stream)
+        self.assertEqual(stream.getvalue(), "\x1b[H\x1b[2J\x1b[3J")
+        self.assertEqual(output, [])
+
+    def test_windows_tty_uses_cls(self):
+        with mock.patch.object(cli.os, "name", "nt"), mock.patch.object(cli.os, "system") as system:
+            cli.clear_screen(lambda _text: None, self.FakeTty())
+        system.assert_called_once_with("cls")
+
+    def test_non_tty_falls_back_to_blank_lines(self):
+        output = []
+        cli.clear_screen(output.append, io.StringIO())
+        self.assertEqual(output, ["\n" * 50])
 
 
 if __name__ == "__main__":
