@@ -2,8 +2,9 @@
 
 The classic Battleship board game, in two versions:
 
-- **Web version** — play against the computer in your browser by clicking
-  squares. Nothing to install. See [Web version](#web-version).
+- **Web version** — play against the computer, or a friend on another
+  computer, in your browser by clicking squares. Nothing to install. See
+  [Web version](#web-version).
 - **Command-line version** — played in your terminal (the text window where
   you type commands), against the computer or a friend on the same keyboard.
 
@@ -25,7 +26,27 @@ Open the game's web page (hosted for free by GitHub Pages):
    starts a new game.
 
 The whole game runs inside the page (in JavaScript, the language browsers
-understand), so there is no server and nothing is saved anywhere.
+understand), so there is no game server and nothing is saved anywhere.
+
+### Playing a friend online
+
+1. Click **Play a friend online**. The page shows a 4-character game code
+   (like `K7Q2`) and a link. Send either one to your friend and keep the page
+   open.
+2. Your friend opens the link, or opens the page, clicks **Join a friend** and
+   types the code.
+3. You each place your ships and press **Ready**. The friend who made the code
+   fires first in the first game; after that, the first shot alternates.
+
+How it works: the two browsers connect directly to each other using WebRTC
+(a feature built into browsers for live connections between them), through
+the [PeerJS](https://peerjs.com) library. PeerJS's free public server only
+introduces the two browsers; if a firewall blocks the direct route, PeerJS's
+relay server passes the messages along instead. Each browser keeps its own
+ships: when your friend fires, their browser asks yours "hit or miss?", and a
+ship's squares are sent only once it sinks, so nobody can peek. Some work or
+school networks block these connections; the page then says it couldn't
+connect.
 
 ### How the web version is built
 
@@ -38,6 +59,9 @@ rules, file for file, with the same tests ported to JavaScript:
 | `web/src/ships.js`, `board.js`, `game.js`, `ai.js` | Same jobs as the Python files of the same names |
 | `web/src/messages.js` | The battle-log sentences ("You sunk my Battleship!") |
 | `web/src/match.js` | One human-vs-computer game from placement to the last shot |
+| `web/src/online.js` | One game against a friend: the ready / shot / result messages the two browsers swap |
+| `web/src/net.js` | The browser-to-browser connection (game codes, joining, leaving), using PeerJS |
+| `web/src/vendor/peerjs.min.js` | A copy of PeerJS 1.5.5 (MIT license), loaded only for online play |
 | `web/src/ui.js` | The only page code: draws the grids and turns clicks into moves |
 | `web/test/` | Automated tests, run with Node.js's built-in test runner |
 

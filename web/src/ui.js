@@ -3,6 +3,8 @@
 import { BOARD_SIZE, Direction, Outcome, PlacementError, ShotError, directionOf } from "./board.js";
 import { Match, Phase } from "./match.js";
 import { ROW_LABELS, formatCoord } from "./messages.js";
+import { hostGame, joinGame } from "./net.js";
+import { OnlineMatch, makeGameCode, normalizeGameCode } from "./online.js";
 import { FLEET, coordKey } from "./ships.js";
 import { SIDES } from "./theme.js";
 
@@ -12,7 +14,10 @@ const $ = (id) => document.getElementById(id);
 const ownGrid = $("own-grid");
 const enemyGrid = $("enemy-grid");
 
-const match = new Match();
+let match = new Match();
+// Online play. state: "off", "join-form", "hosting" (waiting for the friend),
+// "joining", "connected" or "left" (the friend closed the game).
+let online = { state: "off", link: null, code: null };
 let hoverCoord = null;
 let computerThinking = false;
 // A ship being dragged: which square of it was grabbed (offset) and where it is now (over).
@@ -129,27 +134,80 @@ function renderFleet(list, board, side, highlightNext) {
   );
 }
 
+const isOnline = () => match instanceof OnlineMatch;
+
+function placingText() {
+  const next = match.nextShip;
+  const startButton = isOnline() ? "Ready" : "Start battle";
+  if (next === null && (online.state === "hosting" || online.state === "joining")) {
+    return "All ships placed. Drag a ship to move it or click it to turn it while your friend joins.";
+  }
+  if (next === null) return `All ships placed. Drag a ship to move it, click it to turn it, or press ${startButton}.`;
+  const way = match.direction === Direction.HORIZONTAL ? "horizontal" : "vertical";
+  return `Place your ${next[0]} (${next[1]} squares, ${way}): click a square on Your fleet.`;
+}
+
 function statusText() {
   if (match.phase === Phase.PLACING) {
-    const next = match.nextShip;
-    if (next === null) return "All ships placed. Drag a ship to move it, click it to turn it, or press Start battle.";
-    const way = match.direction === Direction.HORIZONTAL ? "horizontal" : "vertical";
-    return `Place your ${next[0]} (${next[1]} squares, ${way}): click a square on Your fleet.`;
+    const friend = isOnline() && match.friendReady ? " Your friend is ready." : "";
+    return placingText() + friend;
   }
   if (match.phase === Phase.OVER) return match.log.at(-1);
+  if (isOnline()) {
+    if (match.friendLeft) return "Your friend left the game.";
+    if (match.phase === Phase.WAITING) return "You're ready. Waiting for your friend to place their ships...";
+    if (match.isHumanTurn) return "Your turn: click a square in Enemy waters to fire.";
+    return match.pendingShot ? "Firing..." : "Your friend is aiming...";
+  }
   return computerThinking ? "The computer is aiming..." : "Your turn: click a square in Enemy waters to fire.";
+}
+
+function strong(text) {
+  const el = document.createElement("b");
+  el.textContent = text;
+  return el;
+}
+
+function shareLink(code) {
+  return `${location.origin}${location.pathname}?join=${code}`;
+}
+
+function renderLobby() {
+  const { state, code } = online;
+  $("lobby-start").hidden = !(state === "off" && match.phase === Phase.PLACING);
+  $("join-form").hidden = state !== "join-form";
+  const bar = !["off", "join-form"].includes(state);
+  $("online-bar").hidden = !bar;
+  $("share").hidden = !(state === "hosting" && code);
+  if (!bar) return;
+  const text = $("online-text");
+  if (state === "hosting" && !code) text.replaceChildren("Setting up your game code...");
+  else if (state === "hosting") {
+    text.replaceChildren(
+      "Your game code is ",
+      strong(code),
+      ". Send your friend the code or this link, and keep this page open. You can place your ships while you wait.",
+    );
+    $("share-link").value = shareLink(code);
+  } else if (state === "joining") text.replaceChildren("Connecting to game ", strong(code), "...");
+  else if (state === "connected") text.replaceChildren("Playing online with a friend, game ", strong(code), ".");
+  else text.replaceChildren("This online game has ended.");
+  $("leave").textContent = { hosting: "Cancel", joining: "Cancel", connected: "Leave game" }[state] ?? "Play the computer instead";
 }
 
 function render() {
   const placing = match.phase === Phase.PLACING;
   $("status").textContent = statusText();
   $("setup").hidden = !placing;
-  $("replay").hidden = match.phase !== Phase.OVER;
+  $("replay").hidden = match.phase !== Phase.OVER || online.state === "left";
   const way = match.direction === Direction.HORIZONTAL ? "Horizontal" : "Vertical";
   $("rotate").textContent = `Direction: ${way} (R)`;
   $("rotate").disabled = match.nextShip === null;
   $("clear").disabled = match.human.board.ships.length === 0;
-  $("start").disabled = match.nextShip !== null;
+  $("start").textContent = isOnline() ? "Ready" : "Start battle";
+  // While waiting for a friend, don't start a game against the computer.
+  $("start").disabled = match.nextShip !== null || online.state === "hosting" || online.state === "joining";
+  renderLobby();
   renderOwnGrid();
   renderEnemyGrid();
   renderFleet($("own-fleet"), match.human.board, "human", placing);
@@ -301,9 +359,11 @@ enemyGrid.addEventListener("click", (event) => {
     notify(error.message);
     return;
   }
-  if (match.phase === Phase.BATTLE) {
+  if (!isOnline() && match.phase === Phase.BATTLE) {
     computerThinking = true;
+    const current = match;
     setTimeout(() => {
+      if (match !== current) return;
       match.computerTurn();
       computerThinking = false;
       render();
@@ -333,13 +393,125 @@ $("start").addEventListener("click", () => {
   render();
 });
 $("again").addEventListener("click", () => {
-  match.reset();
+  if (isOnline()) match.playAgain();
+  else match.reset();
   hoverCoord = null;
   drag = null;
   notify("");
   render();
 });
 
+// Swaps in a new match; ships already placed are kept if both are still placing.
+function switchMatch(next) {
+  if (match.phase === Phase.PLACING && next.phase === Phase.PLACING) next.human.board = match.human.board;
+  match = next;
+  computerThinking = false;
+  hoverCoord = null;
+  drag = null;
+  notify("");
+  render();
+}
+
+function stopOnline() {
+  online.link?.close();
+  online = { state: "off", link: null, code: null };
+}
+
+function linkEvents(host) {
+  return {
+    onCode(code) {
+      online.code = code;
+      render();
+    },
+    onConnected() {
+      const { link } = online;
+      online.state = "connected";
+      switchMatch(new OnlineMatch((message) => link.send(message), { host }));
+    },
+    onMessage(message) {
+      if (!isOnline() || !match.receive(message)) return;
+      if (match.friendLeft) online.state = "left";
+      render();
+    },
+    onClosed() {
+      friendGone("");
+    },
+    onError(message) {
+      friendGone(message);
+    },
+  };
+}
+
+// The link closed or failed: mid-game the board stays up so you can see it;
+// before connecting you're simply back to playing the computer.
+function friendGone(message) {
+  if (online.state === "connected" || online.state === "left") {
+    if (isOnline()) match.leave();
+    online.state = "left";
+  } else {
+    online = { state: "off", link: null, code: null };
+  }
+  notify(message);
+  render();
+}
+
+function startHosting() {
+  online = { state: "hosting", link: null, code: null };
+  online.link = hostGame(makeGameCode, linkEvents(true));
+  notify("");
+  render();
+}
+
+function startJoining(code) {
+  online = { state: "joining", link: null, code };
+  online.link = joinGame(code, linkEvents(false));
+  notify("");
+  render();
+}
+
+$("host").addEventListener("click", startHosting);
+$("join-open").addEventListener("click", () => {
+  online.state = "join-form";
+  notify("");
+  render();
+  $("join-code").focus();
+});
+$("join-cancel").addEventListener("click", () => {
+  online.state = "off";
+  render();
+});
+$("join-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const code = normalizeGameCode($("join-code").value);
+  if (code === null) {
+    notify("A game code is 4 letters and numbers, like K7Q2.");
+    return;
+  }
+  startJoining(code);
+});
+$("leave").addEventListener("click", () => {
+  stopOnline();
+  switchMatch(new Match());
+});
+$("copy-link").addEventListener("click", () => {
+  const input = $("share-link");
+  const copied = () => {
+    $("copy-link").textContent = "Copied!";
+    setTimeout(() => ($("copy-link").textContent = "Copy link"), 2000);
+  };
+  if (navigator.clipboard) navigator.clipboard.writeText(input.value).then(copied, () => input.select());
+  else input.select();
+});
+// Tell the friend right away when this tab closes, instead of them waiting for a timeout.
+window.addEventListener("pagehide", () => online.link?.close());
+
 buildGrid(ownGrid);
 buildGrid(enemyGrid);
 render();
+
+// A shared link (?join=K7Q2) joins that game straight away.
+const sharedCode = normalizeGameCode(new URLSearchParams(location.search).get("join"));
+if (sharedCode !== null) {
+  history.replaceState(null, "", location.pathname);
+  startJoining(sharedCode);
+}
