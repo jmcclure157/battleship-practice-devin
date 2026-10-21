@@ -50,7 +50,8 @@ function isCoord(value) {
 export class OnlineMatch extends Match {
   // `host` is the side that made the code; it fires first in game 1, then
   // the first shot alternates.
-  constructor(send, { host, rng = Math.random, now = Date.now }) {
+  // performance.now() never runs backward, unlike the wall clock (Date.now).
+  constructor(send, { host, rng = Math.random, now = () => performance.now() }) {
     super(rng);
     this.send = send;
     this.host = host;

@@ -8,7 +8,7 @@ import { seededRandom } from "../src/random.js";
 import { FLEET } from "../src/ships.js";
 
 // Two matches joined by an in-memory "network" that delivers in order.
-function pair(now = Date.now) {
+function pair(now = () => performance.now()) {
   const sent = [];
   const host = new OnlineMatch((m) => sent.push([guest, m]), { host: true, rng: seededRandom(1), now });
   const guest = new OnlineMatch((m) => sent.push([host, m]), { host: false, rng: seededRandom(2), now });
