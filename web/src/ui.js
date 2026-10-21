@@ -218,8 +218,9 @@ function renderLobby() {
 function renderTurn() {
   const banner = $("turn");
   const battle = match.phase === Phase.BATTLE && !(isOnline() && match.friendLeft);
+  const firing = isOnline() && match.pendingShot !== null;
   const mine = battle && match.isHumanTurn && !computerThinking;
-  const theirs = battle && !mine;
+  const theirs = battle && !mine && !firing;
   banner.hidden = !battle;
   banner.classList.toggle("mine", mine);
   banner.classList.toggle("theirs", theirs);
@@ -228,7 +229,7 @@ function renderTurn() {
   if (!battle) return;
   const enemy = isOnline() ? "Friend's" : "Computer's";
   if (mine) banner.replaceChildren(strong("Your turn"), " · fire at Enemy waters");
-  else if (isOnline() && match.pendingShot) banner.replaceChildren(strong("Firing..."));
+  else if (firing) banner.replaceChildren(strong("Firing..."));
   else banner.replaceChildren(strong(`${enemy} turn`), " · aiming at your fleet");
 }
 
@@ -454,6 +455,7 @@ function switchMatch(next) {
 }
 
 function stopOnline() {
+  releaseSound();
   online.link?.close();
   online = { state: "off", link: null, code: null };
 }
@@ -500,6 +502,7 @@ function friendGone(message) {
   } else {
     online = { state: "off", link: null, code: null };
   }
+  releaseSound();
   notify(message);
   render();
 }
@@ -533,8 +536,14 @@ function unlockSound() {
   }
 }
 
+// The sound is only needed for the "friend joined" chime, so it's released after.
+function releaseSound() {
+  audio?.close().catch(() => {});
+  audio = null;
+}
+
 function chime() {
-  if (audio?.state !== "running") return;
+  if (audio?.state !== "running") return releaseSound();
   const start = audio.currentTime;
   [660, 990].forEach((frequency, i) => {
     const at = start + i * 0.14;
@@ -548,6 +557,7 @@ function chime() {
     tone.start(at);
     tone.stop(at + 0.32);
   });
+  setTimeout(releaseSound, 600);
 }
 
 function startHosting() {
