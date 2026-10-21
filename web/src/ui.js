@@ -557,7 +557,8 @@ function chime() {
     tone.start(at);
     tone.stop(at + 0.32);
   });
-  setTimeout(releaseSound, 600);
+  const played = audio;
+  setTimeout(() => audio === played && releaseSound(), 600);
 }
 
 function startHosting() {
