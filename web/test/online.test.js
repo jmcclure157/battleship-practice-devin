@@ -3,15 +3,15 @@ import { test } from "node:test";
 
 import { Direction, Outcome, PlacementError, ShotError } from "../src/board.js";
 import { Phase } from "../src/match.js";
-import { OnlineMatch, makeGameCode, normalizeGameCode } from "../src/online.js";
+import { OnlineMatch, TAUNTS, TAUNT_GAP_MS, makeGameCode, normalizeGameCode } from "../src/online.js";
 import { seededRandom } from "../src/random.js";
 import { FLEET } from "../src/ships.js";
 
 // Two matches joined by an in-memory "network" that delivers in order.
-function pair() {
+function pair(now = () => performance.now()) {
   const sent = [];
-  const host = new OnlineMatch((m) => sent.push([guest, m]), { host: true, rng: seededRandom(1) });
-  const guest = new OnlineMatch((m) => sent.push([host, m]), { host: false, rng: seededRandom(2) });
+  const host = new OnlineMatch((m) => sent.push([guest, m]), { host: true, rng: seededRandom(1), now });
+  const guest = new OnlineMatch((m) => sent.push([host, m]), { host: false, rng: seededRandom(2), now });
   const deliver = () => {
     while (sent.length) {
       const [to, message] = sent.shift();
@@ -129,6 +129,8 @@ test("sinking the whole fleet ends the game on both screens", () => {
   assert.equal(guest.phase, Phase.OVER);
   assert.equal(host.winner, "You");
   assert.equal(guest.winner, "Friend");
+  assert.equal(host.humanWon, true);
+  assert.equal(guest.humanWon, false);
   assert.equal(host.log.at(-1), "All of Friend's ships are sunk. You win!");
   assert.equal(guest.log.at(-1), "All of your ships are sunk. Friend wins!");
 });
@@ -188,4 +190,31 @@ test("once the friend leaves, nothing more can be fired", () => {
   assert.equal(net.host.friendLeft, true);
   assert.equal(net.host.isHumanTurn, false);
   assert.equal(net.host.receive({ type: "shot", coord: [0, 0] }), false);
+});
+
+test("a taunt shows up in both battle logs", () => {
+  const { host, guest, deliver } = pair(() => 0);
+  assert.equal(host.taunt(0), true);
+  deliver();
+  assert.equal(host.log.at(-1), `You: ${TAUNTS[0]}`);
+  assert.equal(guest.log.at(-1), `Your friend: ${TAUNTS[0]}`);
+});
+
+test("taunts have a cooldown, and unknown or flooding ones are refused", () => {
+  let clock = 0;
+  const { host, guest } = pair(() => clock);
+  assert.equal(host.taunt(1), true);
+  assert.equal(host.taunt(2), false, "too soon after the last one");
+  clock += TAUNT_GAP_MS;
+  assert.equal(host.taunt(2), true);
+  assert.throws(() => host.taunt(TAUNTS.length));
+  assert.throws(() => host.taunt("0"));
+  for (const id of [-1, 1.5, "1", TAUNTS.length, null]) {
+    assert.equal(guest.receive({ type: "taunt", id }), false);
+  }
+  assert.equal(guest.receive({ type: "taunt", id: 3 }), true);
+  assert.equal(guest.receive({ type: "taunt", id: 3 }), false, "a flood is dropped");
+  clock += TAUNT_GAP_MS;
+  host.leave();
+  assert.equal(host.taunt(0), false, "no taunts once the friend has left");
 });

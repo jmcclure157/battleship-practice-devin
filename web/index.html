@@ -43,9 +43,18 @@
         <button id="clear" type="button">Clear</button>
         <button id="start" type="button" class="primary">Start battle</button>
       </div>
+      <section id="result" class="result-banner" aria-live="polite" hidden>
+        <p id="result-title" class="result-title"></p>
+        <p id="result-text" class="result-text"></p>
+      </section>
       <div id="replay" class="controls" hidden>
         <button id="again" type="button" class="primary">Play again</button>
       </div>
+
+      <section id="taunts" class="taunts" aria-label="Taunt your friend" hidden>
+        <span class="taunts-label">Taunt:</span>
+        <div id="taunt-buttons" class="controls taunt-buttons"></div>
+      </section>
 
       <p id="turn" class="turn-banner" aria-hidden="true" hidden></p>
       <div id="boards" class="boards">
@@ -104,8 +113,10 @@
         <p><b>Playing a friend:</b> click <b>Play a friend online</b> and send them the 4-character
           code (or the link). They open this page, click <b>Join a friend</b> and type the code.
           You each place your ships and press <b>Ready</b>; the friend who made the code fires
-          first, then you take turns. Neither of you can see the other's ships until they sink.</p>
+          first, then you take turns. Neither of you can see the other's ships until they sink.
+          Use the <b>Taunt</b> buttons to pop an emoji or a line up on your friend's screen.</p>
       </details>
+      <div id="taunt-pop" class="taunt-pop" aria-live="polite"></div>
     </main>
     <script type="module" src="src/ui.js"></script>
   </body>
