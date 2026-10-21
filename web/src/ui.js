@@ -148,13 +148,13 @@ function placingText() {
 }
 
 function statusText() {
+  if (isOnline() && match.friendLeft) return "Your friend left the game.";
   if (match.phase === Phase.PLACING) {
     const friend = isOnline() && match.friendReady ? " Your friend is ready." : "";
     return placingText() + friend;
   }
   if (match.phase === Phase.OVER) return match.log.at(-1);
   if (isOnline()) {
-    if (match.friendLeft) return "Your friend left the game.";
     if (match.phase === Phase.WAITING) return "You're ready. Waiting for your friend to place their ships...";
     if (match.isHumanTurn) return "Your turn: click a square in Enemy waters to fire.";
     return match.pendingShot ? "Firing..." : "Your friend is aiming...";
@@ -206,7 +206,7 @@ function render() {
   $("clear").disabled = match.human.board.ships.length === 0;
   $("start").textContent = isOnline() ? "Ready" : "Start battle";
   // While waiting for a friend, don't start a game against the computer.
-  $("start").disabled = match.nextShip !== null || online.state === "hosting" || online.state === "joining";
+  $("start").disabled = match.nextShip !== null || ["hosting", "joining", "left"].includes(online.state);
   renderLobby();
   renderOwnGrid();
   renderEnemyGrid();
@@ -374,6 +374,8 @@ enemyGrid.addEventListener("click", (event) => {
 
 $("rotate").addEventListener("click", rotate);
 document.addEventListener("keydown", (event) => {
+  // Typing a game code (which can contain R) mustn't turn ships.
+  if (event.target instanceof HTMLInputElement) return;
   if (event.key === "Escape") cancelDrag();
   else if (event.key.toLowerCase() === "r" && !event.ctrlKey && !event.metaKey) rotate();
 });
@@ -504,6 +506,11 @@ $("copy-link").addEventListener("click", () => {
 });
 // Tell the friend right away when this tab closes, instead of them waiting for a timeout.
 window.addEventListener("pagehide", () => online.link?.close());
+// Back/forward can restore this page from the browser's cache after pagehide
+// closed the link, so that online game can't continue.
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted && online.link?.closed) friendGone("The online game ended while you were away from this page.");
+});
 
 buildGrid(ownGrid);
 buildGrid(enemyGrid);
