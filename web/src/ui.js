@@ -71,6 +71,9 @@ function drawCell(cell, { board, revealShips, preview }) {
   const ship = board.shipAt(coord);
   const shot = board.shotAt(coord);
   const sunk = ship !== null && ship.isSunk && shot !== null;
+  // "" = drawn before with no shot, so a hit now is a new one (not a redraw).
+  if (shot === Outcome.HIT && cell.dataset.shot === "") explode(cell);
+  cell.dataset.shot = shot ?? "";
   cell.className = "cell";
   cell.textContent = "";
   if (ship !== null && (revealShips || sunk)) cell.classList.add("ship");
@@ -87,6 +90,17 @@ function drawCell(cell, { board, revealShips, preview }) {
   const state = shot === Outcome.MISS ? "miss" : shot ? (sunk ? "sunk" : "hit") : ship && revealShips ? "ship" : "water";
   cell.setAttribute("aria-label", `${formatCoord(coord)}: ${state}`);
   return { coord, shot };
+}
+
+// A short burst drawn over the cell; the grid is its positioning box.
+function explode(cell) {
+  const boom = document.createElement("span");
+  boom.className = "boom";
+  boom.style.left = `${cell.offsetLeft}px`;
+  boom.style.top = `${cell.offsetTop}px`;
+  boom.addEventListener("animationend", () => boom.remove());
+  cell.parentElement.append(boom);
+  setTimeout(() => boom.remove(), 1500);
 }
 
 function dragStart({ offset, direction, over: [row, col] }) {
@@ -190,9 +204,32 @@ function renderLobby() {
     );
     $("share-link").value = shareLink(code);
   } else if (state === "joining") text.replaceChildren("Connecting to game ", strong(code), "...");
-  else if (state === "connected") text.replaceChildren("Playing online with a friend, game ", strong(code), ".");
+  else if (state === "connected" && match.phase === Phase.PLACING) {
+    const who = isHost() ? "Your friend joined!" : "You're in!";
+    text.replaceChildren(strong(who), " Place your ships and press Ready.", match.friendReady ? " Your friend is ready." : "");
+  } else if (state === "connected" && match.phase === Phase.WAITING) {
+    text.replaceChildren(strong("You're ready."), " Waiting for your friend to place their ships...");
+  } else if (state === "connected") text.replaceChildren("Playing online with a friend, game ", strong(code), ".");
   else text.replaceChildren("This online game has ended.");
+  $("online-bar").classList.toggle("joined", state === "connected" && match.phase !== Phase.BATTLE && match.phase !== Phase.OVER);
   $("leave").textContent = { hosting: "Cancel", joining: "Cancel", connected: "Leave game" }[state] ?? "Play the computer instead";
+}
+
+function renderTurn() {
+  const banner = $("turn");
+  const battle = match.phase === Phase.BATTLE && !(isOnline() && match.friendLeft);
+  const mine = battle && match.isHumanTurn && !computerThinking;
+  const theirs = battle && !mine;
+  banner.hidden = !battle;
+  banner.classList.toggle("mine", mine);
+  banner.classList.toggle("theirs", theirs);
+  $("boards").classList.toggle("my-turn", mine);
+  $("boards").classList.toggle("their-turn", theirs);
+  if (!battle) return;
+  const enemy = isOnline() ? "Friend's" : "Computer's";
+  if (mine) banner.replaceChildren(strong("Your turn"), " · fire at Enemy waters");
+  else if (isOnline() && match.pendingShot) banner.replaceChildren(strong("Firing..."));
+  else banner.replaceChildren(strong(`${enemy} turn`), " · aiming at your fleet");
 }
 
 function render() {
@@ -208,6 +245,7 @@ function render() {
   // While waiting for a friend, don't start a game against the computer.
   $("start").disabled = match.nextShip !== null || ["hosting", "joining", "left"].includes(online.state);
   renderLobby();
+  renderTurn();
   renderOwnGrid();
   renderEnemyGrid();
   renderFleet($("own-fleet"), match.human.board, "human", placing);
@@ -430,10 +468,18 @@ function linkEvents(host) {
       const { link } = online;
       online.state = "connected";
       switchMatch(new OnlineMatch((message) => link.send(message), { host }));
+      flash($("online-bar"));
+      chime();
+      alertTab(host ? "Your friend joined!" : "Connected!");
     },
     onMessage(message) {
+      const wasMyTurn = isOnline() && match.isHumanTurn;
       if (!isOnline() || !match.receive(message)) return;
       if (match.friendLeft) online.state = "left";
+      if (!wasMyTurn && match.isHumanTurn) {
+        alertTab("Your turn!");
+        if (message.type === "ready") flash($("turn"));
+      }
       render();
     },
     onClosed() {
@@ -458,7 +504,54 @@ function friendGone(message) {
   render();
 }
 
+const isHost = () => isOnline() && match.host;
+
+// Tab title as a nudge for a page in a background tab; reset when it's looked at.
+const PAGE_TITLE = document.title;
+function alertTab(text) {
+  if (document.hidden) document.title = `(!) ${text} · Battleship`;
+}
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) document.title = PAGE_TITLE;
+});
+
+function flash(element) {
+  element.classList.remove("flash");
+  void element.offsetWidth; // restart the animation
+  element.classList.add("flash");
+}
+
+// Browsers only allow sound after a click, so the audio is set up on the
+// Play-a-friend / Join click and used when the friend connects.
+let audio = null;
+function unlockSound() {
+  try {
+    audio ??= new AudioContext();
+    audio.resume();
+  } catch {
+    audio = null;
+  }
+}
+
+function chime() {
+  if (audio?.state !== "running") return;
+  const start = audio.currentTime;
+  [660, 990].forEach((frequency, i) => {
+    const at = start + i * 0.14;
+    const tone = audio.createOscillator();
+    const volume = audio.createGain();
+    tone.frequency.value = frequency;
+    volume.gain.setValueAtTime(0.0001, at);
+    volume.gain.exponentialRampToValueAtTime(0.15, at + 0.02);
+    volume.gain.exponentialRampToValueAtTime(0.0001, at + 0.3);
+    tone.connect(volume).connect(audio.destination);
+    tone.start(at);
+    tone.stop(at + 0.32);
+  });
+}
+
 function startHosting() {
+  unlockSound();
   online = { state: "hosting", link: null, code: null };
   online.link = hostGame(makeGameCode, linkEvents(true));
   notify("");
@@ -466,6 +559,7 @@ function startHosting() {
 }
 
 function startJoining(code) {
+  unlockSound();
   online = { state: "joining", link: null, code };
   online.link = joinGame(code, linkEvents(false));
   notify("");

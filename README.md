@@ -38,6 +38,12 @@ understand), so there is no game server and nothing is saved anywhere.
 3. You each place your ships and press **Ready**. The friend who made the code
    fires first in the first game; after that, the first shot alternates.
 
+When your friend connects, the online bar turns green with "Your friend joined!",
+plays a short chime, and (if the page is in a background tab) the tab title
+changes. During the battle a banner above the boards shows whose turn it is:
+green "Your turn" with Enemy waters glowing, or "Friend's turn" with your fleet
+outlined in red. Every hit shows a short explosion on its square.
+
 How it works: the two browsers connect directly to each other using WebRTC
 (a feature built into browsers for live connections between them), through
 the [PeerJS](https://peerjs.com) library. PeerJS's free public server only
