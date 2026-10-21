@@ -28,7 +28,7 @@ export function describeShot(result, shooter, defender, shipName = result.ship?.
 }
 
 export function describeWin(winner, loser) {
-  const whose = loser === "You" ? "your" : `the ${loser}'s`;
+  const whose = loser === "You" ? "your" : loser === "Computer" ? "the Computer's" : `${loser}'s`;
   const verb = winner === "You" ? "win" : "wins";
   return `All of ${whose} ships are sunk. ${winner} ${verb}!`;
 }

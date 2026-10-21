@@ -14,6 +14,29 @@
       <p id="status" class="status" role="status" aria-live="polite"></p>
       <p id="notice" class="notice" aria-live="assertive"></p>
 
+      <section id="lobby" class="lobby" aria-label="Online play">
+        <div id="lobby-start" class="controls">
+          <button id="host" type="button">Play a friend online</button>
+          <button id="join-open" type="button">Join a friend</button>
+        </div>
+        <form id="join-form" class="controls" hidden>
+          <label for="join-code">Game code</label>
+          <input id="join-code" class="code-input" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="K7Q2" />
+          <button type="submit" class="primary">Join</button>
+          <button id="join-cancel" type="button">Cancel</button>
+        </form>
+        <div id="online-bar" class="online-bar" hidden>
+          <p id="online-text" class="online-text"></p>
+          <div id="share" class="controls" hidden>
+            <input id="share-link" class="share-link" readonly aria-label="Link for your friend" />
+            <button id="copy-link" type="button">Copy link</button>
+          </div>
+          <div class="controls">
+            <button id="leave" type="button">Cancel</button>
+          </div>
+        </div>
+      </section>
+
       <div id="setup" class="controls">
         <button id="rotate" type="button"></button>
         <button id="random" type="button">Place randomly</button>
@@ -77,6 +100,10 @@
           <li>Sink all 5 enemy ships (Carrier 5, Battleship 4, Cruiser 3, Submarine 3,
             Destroyer 2) before the computer sinks yours.</li>
         </ol>
+        <p><b>Playing a friend:</b> click <b>Play a friend online</b> and send them the 4-character
+          code (or the link). They open this page, click <b>Join a friend</b> and type the code.
+          You each place your ships and press <b>Ready</b>; the friend who made the code fires
+          first, then you take turns. Neither of you can see the other's ships until they sink.</p>
       </details>
     </main>
     <script type="module" src="src/ui.js"></script>

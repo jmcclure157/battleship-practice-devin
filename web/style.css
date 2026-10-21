@@ -86,6 +86,57 @@ button {
   border-color: #3ccf7a;
 }
 
+.controls input {
+  font: inherit;
+  padding: 7px 10px;
+  border: 1px solid #3d6a8f;
+  border-radius: 6px;
+  background: #0b1d2e;
+  color: var(--text);
+  min-width: 0;
+}
+
+.controls label {
+  align-self: center;
+}
+
+.code-input {
+  width: 5.5em;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.share-link {
+  flex: 1 1 14em;
+}
+
+.online-bar {
+  margin-bottom: 16px;
+  padding: 10px 12px 0;
+  border: 1px solid #3d6a8f;
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+.online-bar[hidden],
+.lobby [hidden] {
+  display: none;
+}
+
+.online-text {
+  margin: 0 0 10px;
+}
+
+.online-text b {
+  font-size: 1.2em;
+  letter-spacing: 0.12em;
+  color: #ffd84a;
+}
+
+.online-bar .controls {
+  margin-bottom: 10px;
+}
+
 .controls button:disabled {
   opacity: 0.45;
   cursor: not-allowed;

@@ -9,7 +9,8 @@ import { describeShot, describeWin } from "./messages.js";
 import { FLEET } from "./ships.js";
 import { shipLabel } from "./theme.js";
 
-export const Phase = Object.freeze({ PLACING: "placing", BATTLE: "battle", OVER: "over" });
+// WAITING is only used online: your fleet is locked and your friend is still placing.
+export const Phase = Object.freeze({ PLACING: "placing", WAITING: "waiting", BATTLE: "battle", OVER: "over" });
 
 export class Match {
   constructor(rng = Math.random) {
