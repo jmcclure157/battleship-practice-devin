@@ -375,7 +375,8 @@ enemyGrid.addEventListener("click", (event) => {
 $("rotate").addEventListener("click", rotate);
 document.addEventListener("keydown", (event) => {
   // Typing a game code (which can contain R) mustn't turn ships.
-  if (event.target instanceof HTMLInputElement) return;
+  const typing = event.target instanceof HTMLInputElement && !event.target.readOnly;
+  if (typing && drag === null) return;
   if (event.key === "Escape") cancelDrag();
   else if (event.key.toLowerCase() === "r" && !event.ctrlKey && !event.metaKey) rotate();
 });
