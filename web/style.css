@@ -419,7 +419,7 @@ button {
 }
 
 /* Mini explosion on a new hit: a hot flash that swells and fades, with a ring. */
-.boom {
+.fx {
   position: absolute;
   width: var(--cell);
   height: var(--cell);
@@ -427,8 +427,8 @@ button {
   z-index: 2;
 }
 
-.boom::before,
-.boom::after {
+.fx::before,
+.fx::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -437,12 +437,12 @@ button {
 
 .boom::before {
   background: radial-gradient(circle, #fff7c2 0%, #ffd84a 30%, #ff7a1a 58%, rgba(224, 72, 62, 0) 72%);
-  animation: boom 0.7s ease-out forwards;
+  animation: boom 0.7s ease-out both;
 }
 
 .boom::after {
   border: 3px solid #ffb02e;
-  animation: ring 0.7s ease-out forwards;
+  animation: ring 0.7s ease-out both;
 }
 
 @keyframes boom {
@@ -471,11 +471,269 @@ button {
   }
 }
 
+.splash::before {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, #bfe6ff 30%, rgba(90, 170, 230, 0.6) 55%, rgba(90, 170, 230, 0) 70%);
+  animation: splash 0.6s ease-out both;
+}
+
+.splash::after {
+  border: 2px solid #cdeeff;
+  animation: ring 0.7s ease-out both;
+}
+
+@keyframes splash {
+  0% {
+    transform: scale(0.2);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+.blast::before {
+  background: radial-gradient(circle, #fff 0%, #ffe066 22%, #ff7a1a 45%, #c81e1e 62%, rgba(80, 0, 0, 0) 75%);
+  animation: blast 0.9s ease-out both;
+}
+
+.blast::after {
+  border: 4px solid #ff5a1f;
+  animation: ring-big 0.9s ease-out both;
+}
+
+@keyframes blast {
+  0% {
+    transform: scale(0.3);
+    opacity: 1;
+  }
+  40% {
+    transform: scale(2.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(3.4);
+    opacity: 0;
+  }
+}
+
+@keyframes ring-big {
+  0% {
+    transform: scale(0.4);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4.2);
+    opacity: 0;
+  }
+}
+
+/* Each square of a sunk ship starts a little after the one before. */
+.fx::before,
+.fx::after {
+  animation-delay: var(--delay, 0s);
+}
+
+.grid.shake {
+  animation: shake 0.45s ease-in-out;
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(-4px, 2px);
+  }
+  40% {
+    transform: translate(4px, -2px);
+  }
+  60% {
+    transform: translate(-3px, 1px);
+  }
+  80% {
+    transform: translate(2px, -1px);
+  }
+}
+
+/* Game over: Cognition's dark look for a win, DIY's sticky note for a loss. */
+.result-banner {
+  margin: 0 0 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  text-align: center;
+  animation: result-in 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+.result-title {
+  margin: 0;
+  font-size: clamp(2rem, 8vw, 3.2rem);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.result-text {
+  margin: 4px 0 0;
+}
+
+.result-banner.victory {
+  background: linear-gradient(135deg, #0e0e10, #1f2a24);
+  color: #fff;
+  border: 2px solid var(--ok);
+  box-shadow: 0 0 28px rgba(60, 207, 122, 0.45);
+}
+
+.result-banner.victory .result-title {
+  color: var(--ok);
+}
+
+.result-banner.defeat {
+  background: #ffd84a;
+  color: #1d1d1f;
+  border: 2px dashed #5f6873;
+}
+
+@keyframes result-in {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.taunts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.taunts[hidden] {
+  display: none;
+}
+
+.taunts-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.taunt-buttons {
+  gap: 6px;
+  margin: 0;
+}
+
+.taunt-buttons .taunt-emoji {
+  padding: 2px 8px;
+  font-size: 1.3rem;
+  line-height: 1.2;
+}
+
+.taunt-pop {
+  position: fixed;
+  top: 18%;
+  left: 50%;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.taunt {
+  max-width: 80vw;
+  padding: 10px 18px;
+  border-radius: 14px;
+  text-align: center;
+  font-size: 1.3rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  animation: taunt 2.6s ease-out both;
+}
+
+.taunt b {
+  display: block;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.taunt .emoji {
+  display: block;
+  font-size: 3.5rem;
+  line-height: 1.1;
+}
+
+.taunt.theirs {
+  background: #ffd84a;
+  color: #1d1d1f;
+}
+
+.taunt.mine {
+  border: 1px solid var(--ok);
+  background: #0e0e10;
+  color: #fff;
+  font-size: 1rem;
+}
+
+.taunt.mine .emoji {
+  font-size: 2.2rem;
+}
+
+@keyframes taunt {
+  0% {
+    transform: translateY(20px) scale(0.5);
+    opacity: 0;
+  }
+  12% {
+    transform: translateY(0) scale(1.1);
+    opacity: 1;
+  }
+  20% {
+    transform: scale(1);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-30px);
+    opacity: 0;
+  }
+}
+
+@keyframes taunt-fade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  10%,
+  85% {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .boom::before,
-  .boom::after,
-  .flash {
+  .fx::before,
+  .fx::after,
+  .flash,
+  .grid.shake,
+  .result-banner {
     animation-duration: 0.01s;
+  }
+
+  .taunt {
+    animation-name: taunt-fade;
   }
 }
 

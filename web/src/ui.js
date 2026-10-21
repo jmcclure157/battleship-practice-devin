@@ -4,7 +4,7 @@ import { BOARD_SIZE, Direction, Outcome, PlacementError, ShotError, directionOf 
 import { Match, Phase } from "./match.js";
 import { ROW_LABELS, formatCoord } from "./messages.js";
 import { hostGame, joinGame } from "./net.js";
-import { OnlineMatch, makeGameCode, normalizeGameCode } from "./online.js";
+import { OnlineMatch, TAUNTS, TAUNT_GAP_MS, makeGameCode, normalizeGameCode } from "./online.js";
 import { FLEET, coordKey } from "./ships.js";
 import { SIDES } from "./theme.js";
 
@@ -24,6 +24,8 @@ let computerThinking = false;
 let drag = null;
 // Set when a press on a ship ends, so the click the browser sends after it is skipped.
 let suppressClick = false;
+// True for a moment after you send a taunt, so the buttons can't be spammed.
+let tauntCooldown = false;
 
 function buildGrid(container) {
   container.append(label(""));
@@ -71,9 +73,20 @@ function drawCell(cell, { board, revealShips, preview }) {
   const ship = board.shipAt(coord);
   const shot = board.shotAt(coord);
   const sunk = ship !== null && ship.isSunk && shot !== null;
-  // "" = drawn before with no shot, so a hit now is a new one (not a redraw).
-  if (shot === Outcome.HIT && cell.dataset.shot === "") explode(cell);
-  cell.dataset.shot = shot ?? "";
+  // Effects only for a change since the last draw (undefined = first draw), not redraws.
+  const fx = shot === Outcome.MISS ? "miss" : shot ? (sunk ? "sunk" : "hit") : "";
+  const before = cell.dataset.fx;
+  if (before !== undefined && before !== fx) {
+    if (fx === "miss") effect(cell, "splash");
+    else if (fx === "hit") effect(cell, "boom");
+    else if (fx === "sunk") {
+      // Ripples along the ship, square by square.
+      const index = ship.cells.findIndex(([r, c]) => r === coord[0] && c === coord[1]);
+      effect(cell, "blast", index * 90);
+      restartAnimation(cell.parentElement, "shake");
+    }
+  }
+  cell.dataset.fx = fx;
   cell.className = "cell";
   cell.textContent = "";
   if (ship !== null && (revealShips || sunk)) cell.classList.add("ship");
@@ -92,15 +105,16 @@ function drawCell(cell, { board, revealShips, preview }) {
   return { coord, shot };
 }
 
-// A short burst drawn over the cell; the grid is its positioning box.
-function explode(cell) {
-  const boom = document.createElement("span");
-  boom.className = "boom";
-  boom.style.left = `${cell.offsetLeft}px`;
-  boom.style.top = `${cell.offsetTop}px`;
-  boom.addEventListener("animationend", () => boom.remove());
-  cell.parentElement.append(boom);
-  setTimeout(() => boom.remove(), 1500);
+// A short animation drawn over the cell (the grid is its positioning box):
+// "boom" for a hit, "splash" for a miss, "blast" for each square of a sunk ship.
+function effect(cell, kind, delay = 0) {
+  const fx = document.createElement("span");
+  fx.className = `fx ${kind}`;
+  fx.style.left = `${cell.offsetLeft}px`;
+  fx.style.top = `${cell.offsetTop}px`;
+  fx.style.setProperty("--delay", `${delay}ms`);
+  cell.parentElement.append(fx);
+  setTimeout(() => fx.remove(), 1200 + delay);
 }
 
 function dragStart({ offset, direction, over: [row, col] }) {
@@ -167,7 +181,7 @@ function statusText() {
     const friend = isOnline() && match.friendReady ? " Your friend is ready." : "";
     return placingText() + friend;
   }
-  if (match.phase === Phase.OVER) return match.log.at(-1);
+  if (match.phase === Phase.OVER) return "Game over. Press Play again for a rematch.";
   if (isOnline()) {
     if (match.phase === Phase.WAITING) return "You're ready. Waiting for your friend to place their ships...";
     if (match.isHumanTurn) return "Your turn: click a square in Enemy waters to fire.";
@@ -233,6 +247,42 @@ function renderTurn() {
   else banner.replaceChildren(strong(`${enemy} turn`), " · aiming at your fleet");
 }
 
+function renderResult() {
+  const over = match.phase === Phase.OVER;
+  const banner = $("result");
+  banner.hidden = !over;
+  if (!over) return;
+  const won = match.humanWon;
+  banner.classList.toggle("victory", won);
+  banner.classList.toggle("defeat", !won);
+  const enemyBoard = match.computer.board;
+  const sank = enemyBoard.ships.filter((ship) => ship.isSunk).length;
+  const enemy = isOnline() ? "Your friend" : "The computer";
+  $("result-title").textContent = won ? "Victory" : "Defeat";
+  $("result-text").textContent = won
+    ? `Cognition sank all ${FLEET.length} DIY ships in ${enemyBoard.shots.size} shots.`
+    : `${enemy} sank your whole fleet. You sank ${sank} of ${FLEET.length} ships.`;
+}
+
+function renderTaunts() {
+  $("taunts").hidden = !(isOnline() && online.state === "connected" && !match.friendLeft);
+  for (const button of $("taunt-buttons").children) button.disabled = tauntCooldown;
+}
+
+const isEmoji = (text) => /^\p{Extended_Pictographic}/u.test(text);
+
+// A taunt pops up over the page for a couple of seconds: big for the friend's, small for yours.
+function showTaunt(text, mine) {
+  const pop = document.createElement("div");
+  pop.className = `taunt ${mine ? "mine" : "theirs"}`;
+  const body = document.createElement("span");
+  body.className = isEmoji(text) ? "emoji" : "line";
+  body.textContent = text;
+  pop.append(strong(mine ? "You" : "Your friend"), body);
+  $("taunt-pop").append(pop);
+  setTimeout(() => pop.remove(), 2700);
+}
+
 function render() {
   const placing = match.phase === Phase.PLACING;
   $("status").textContent = statusText();
@@ -247,6 +297,8 @@ function render() {
   $("start").disabled = match.nextShip !== null || ["hosting", "joining", "left"].includes(online.state);
   renderLobby();
   renderTurn();
+  renderResult();
+  renderTaunts();
   renderOwnGrid();
   renderEnemyGrid();
   renderFleet($("own-fleet"), match.human.board, "human", placing);
@@ -443,6 +495,24 @@ $("again").addEventListener("click", () => {
   render();
 });
 
+TAUNTS.forEach((text, id) => {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = isEmoji(text) ? "taunt-emoji" : "taunt-line";
+  button.textContent = text;
+  button.addEventListener("click", () => {
+    if (!isOnline() || tauntCooldown || !match.taunt(id)) return;
+    showTaunt(text, true);
+    tauntCooldown = true;
+    setTimeout(() => {
+      tauntCooldown = false;
+      render();
+    }, TAUNT_GAP_MS);
+    render();
+  });
+  $("taunt-buttons").append(button);
+});
+
 // Swaps in a new match; ships already placed are kept if both are still placing.
 function switchMatch(next) {
   if (match.phase === Phase.PLACING && next.phase === Phase.PLACING) next.human.board = match.human.board;
@@ -482,6 +552,10 @@ function linkEvents(host) {
         alertTab("Your turn!");
         if (message.type === "ready") flash($("turn"));
       }
+      if (message.type === "taunt") {
+        showTaunt(TAUNTS[message.id], false);
+        alertTab(`Your friend: ${TAUNTS[message.id]}`);
+      }
       render();
     },
     onClosed() {
@@ -518,10 +592,14 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden) document.title = PAGE_TITLE;
 });
 
+function restartAnimation(element, className) {
+  element.classList.remove(className);
+  void element.offsetWidth; // forces the browser to notice, so the animation plays again
+  element.classList.add(className);
+}
+
 function flash(element) {
-  element.classList.remove("flash");
-  void element.offsetWidth; // restart the animation
-  element.classList.add("flash");
+  restartAnimation(element, "flash");
 }
 
 // Browsers only allow sound after a click, so the audio is set up on the

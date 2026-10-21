@@ -96,6 +96,7 @@ test("a full game ends with a winner announced", () => {
     }
     assert.equal(match.phase, Phase.OVER);
     assert.ok(match.winner === match.human || match.winner === match.computer);
+    assert.equal(match.humanWon, match.winner === match.human);
     assert.match(match.log.at(-1), /ships are sunk\. (You win|Computer wins)!$/);
     assert.throws(() => match.fire(targets[0]), ShotError);
   }

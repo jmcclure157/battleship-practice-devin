@@ -42,7 +42,14 @@ When your friend connects, the online bar turns green with "Your friend joined!"
 plays a short chime, and (if the page is in a background tab) the tab title
 changes. During the battle a banner above the boards shows whose turn it is:
 green "Your turn" with Enemy waters glowing, or "Friend's turn" with your fleet
-outlined in red. Every hit shows a short explosion on its square.
+outlined in red. Every hit shows a short explosion on its square, every miss a
+water splash, and a sunk ship blasts square by square while its board shakes.
+At the end, a **Victory** or **Defeat** banner shows the result.
+
+While playing a friend, the **Taunt** buttons pop an emoji or a ready-made line
+(like "Missed me!") up on their screen. Only the taunt's number goes over the
+network, so nothing typed can show up on the other screen. There's a
+one-second cooldown so nobody can spam them.
 
 How it works: the two browsers connect directly to each other using WebRTC
 (a feature built into browsers for live connections between them), through

@@ -39,6 +39,10 @@ export class Match {
     return this.game?.winner ?? null;
   }
 
+  get humanWon() {
+    return this.winner === this.human;
+  }
+
   get isHumanTurn() {
     return this.phase === Phase.BATTLE && this.game.current === this.human;
   }

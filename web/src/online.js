@@ -20,6 +20,16 @@ const FRIEND = "Friend";
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 export const CODE_LENGTH = 4;
 
+// Ready-made taunts. Only the index goes over the network, so nothing else can
+// show up on the other screen.
+export const TAUNTS = Object.freeze([
+  "😂", "🎯", "💥", "😴", "😎", "👋", "🔥", "🤡",
+  "Is that all you've got?", "Missed me!", "Nice shot!", "Good game!",
+]);
+export const TAUNT_GAP_MS = 1000;
+
+const isTaunt = (id) => Number.isInteger(id) && id >= 0 && id < TAUNTS.length;
+
 export function makeGameCode(rng = Math.random) {
   let code = "";
   for (let i = 0; i < CODE_LENGTH; i++) code += CODE_ALPHABET[Math.floor(rng() * CODE_ALPHABET.length)];
@@ -40,11 +50,14 @@ function isCoord(value) {
 export class OnlineMatch extends Match {
   // `host` is the side that made the code; it fires first in game 1, then
   // the first shot alternates.
-  constructor(send, { host, rng = Math.random }) {
+  constructor(send, { host, rng = Math.random, now = Date.now }) {
     super(rng);
     this.send = send;
     this.host = host;
     this.friendLeft = false;
+    this.now = now;
+    this.lastTauntOut = -Infinity;
+    this.lastTauntIn = -Infinity;
   }
 
   reset() {
@@ -64,6 +77,24 @@ export class OnlineMatch extends Match {
 
   get winner() {
     return this.result;
+  }
+
+  get humanWon() {
+    return this.result === "You";
+  }
+
+  get canTaunt() {
+    return !this.friendLeft && this.now() - this.lastTauntOut >= TAUNT_GAP_MS;
+  }
+
+  // Sends TAUNTS[id]; returns false (and sends nothing) during the cooldown.
+  taunt(id) {
+    if (!isTaunt(id)) throw new Error("Unknown taunt.");
+    if (!this.canTaunt) return false;
+    this.lastTauntOut = this.now();
+    this.send({ type: "taunt", id });
+    this.log.push(`You: ${TAUNTS[id]}`);
+    return true;
   }
 
   get isHumanTurn() {
@@ -112,6 +143,8 @@ export class OnlineMatch extends Match {
         return this.#incomingResult(message);
       case "again":
         return this.#friendWantsAgain();
+      case "taunt":
+        return this.#incomingTaunt(message.id);
       case "leave":
         this.leave();
         return true;
@@ -191,6 +224,15 @@ export class OnlineMatch extends Match {
     if (!sunk.occupies(coord)) return null;
     for (const cell of sunk.cells) sunk.registerHit(cell);
     return sunk;
+  }
+
+  // A friend's page skipping the cooldown can't flood the screen.
+  #incomingTaunt(id) {
+    const at = this.now();
+    if (!isTaunt(id) || at - this.lastTauntIn < TAUNT_GAP_MS / 2) return false;
+    this.lastTauntIn = at;
+    this.log.push(`Your friend: ${TAUNTS[id]}`);
+    return true;
   }
 
   #friendWantsAgain() {
